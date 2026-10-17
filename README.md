@@ -233,6 +233,42 @@ because the gateway serves them as the device last reported them. For those,
 `reported_at` is the only way to tell how old the value is. The `reported_at` attribute on the error entities
 shows which of the two you are looking at.
 
+## Schedules
+
+- **Schedule** — the entries the device holds, as the device holds them: the
+  state is how many there are, and the entries themselves are attributes, with
+  weekday names, `HH:MM` and minutes.
+- **`set_schedule`** — writes a whole schedule. The device keeps one list and
+  writing it replaces what was there, so the action takes the whole list
+  rather than a single entry, and refuses anything the device would not
+  accept before it reaches the mower.
+- **Clear schedules** empties it, and **Resume schedule** releases a mower
+  that was parked.
+
+```yaml
+action: gardena_smart_local_preview.set_schedule
+target:
+  entity_id: lawn_mower.my_mower
+data:
+  schedules:
+    - days: [monday, tuesday, wednesday, thursday, friday, saturday]
+      start: "09:30"
+      duration_minutes: 340
+```
+
+> [!NOTE]
+> The first byte of each entry is written back exactly as the device holds
+> it. The dependency calls it a schedule id, but one mower was seen holding
+> `0x80` in it for its only entry and `0x00` for an earlier one, so it
+> behaves more like a flag than an index and nothing available documents it.
+> Writing a guess there could change something invisible.
+
+> [!NOTE]
+> Docking a mower parks it until further notice — the integration writes a
+> date far in the future to the device's "paused until" resource. **Resume
+> schedule** writes back the idle value a mower that has never been parked
+> reports, so the week timer runs again without starting a mow.
+
 ## What a Mower Reports About Itself
 
 Everything below comes from resources the mower already sends; none of it was

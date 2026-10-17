@@ -41,6 +41,9 @@
       },
       "wipe_map_and_zones": {
         "name": "Wipe map and zones"
+      },
+      "resume_schedule": {
+        "name": "Resume schedule"
       }
     },
     "device_tracker": {
@@ -185,6 +188,9 @@
           "frost": "Frost",
           "unknown": "Unknown"
         }
+      },
+      "schedule": {
+        "name": "Schedule"
       }
     },
     "switch": {

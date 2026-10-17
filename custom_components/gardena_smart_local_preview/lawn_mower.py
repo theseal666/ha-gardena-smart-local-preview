@@ -19,17 +19,19 @@ from homeassistant.components.lawn_mower import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import GardenaSmartLocalCoordinator
-from .device_data import has_resource
+from .device_data import has_resource, read_value
 from .entity import (
     EntityFactories,
     GardenaEntity,
     async_setup_device_entities,
     get_mower_duration_hours,
 )
+from .schedules import MAX_SCHEDULES, WEEKDAYS, build_schedule
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,6 +63,30 @@ async def async_setup_entry(
             ),
         },
         "async_start_mowing_for",
+    )
+
+    platform.async_register_entity_service(
+        "set_schedule",
+        {
+            # The whole schedule, not a single entry: the device holds one
+            # list and writing it replaces what was there, so a partial
+            # update would quietly drop the entries it did not mention.
+            vol.Required("schedules"): vol.All(
+                [
+                    {
+                        vol.Required("days"): vol.All(
+                            [vol.In(WEEKDAYS)], vol.Length(min=1)
+                        ),
+                        vol.Required("start"): cv.time,
+                        vol.Required("duration_minutes"): vol.All(
+                            vol.Coerce(int), vol.Range(min=1, max=60 * 24 * 7)
+                        ),
+                    }
+                ],
+                vol.Length(min=1, max=MAX_SCHEDULES),
+            )
+        },
+        "async_set_schedule",
     )
 
     def _entities_for_device(device: Device) -> EntityFactories:
@@ -144,6 +170,39 @@ class GardenaMower(GardenaEntity, LawnMowerEntity):
             self._device.id,
             hours,
             distance or 0,
+        )
+
+    async def async_set_schedule(self, schedules: list[dict]) -> None:
+        if not has_resource(self._device, "lemonbeat", "schedule_config"):
+            raise HomeAssistantError(
+                f"Device {self._device.id} does not hold a schedule this "
+                f"integration can write"
+            )
+        # Written back per slot, so the byte the device keeps in each entry
+        # survives a schedule this integration did not write
+        held = read_value(self._device, "lemonbeat", "schedule_config")
+        try:
+            config = build_schedule(
+                [
+                    {
+                        "days": entry["days"],
+                        "start": entry["start"].strftime("%H:%M"),
+                        "duration_minutes": entry["duration_minutes"],
+                    }
+                    for entry in schedules
+                ],
+                template=held if isinstance(held, bytes) else None,
+            )
+        except ValueError as err:
+            raise HomeAssistantError(f"Invalid schedule: {err}") from err
+
+        await self._send_confirmed_command(
+            self._device.build_set_resource_obj(
+                "lemonbeat", 0, "schedule_config", config
+            )
+        )
+        _LOGGER.info(
+            "Wrote %s schedule(s) to device %s", len(schedules), self._device.id
         )
 
     async def async_dock(self) -> None:

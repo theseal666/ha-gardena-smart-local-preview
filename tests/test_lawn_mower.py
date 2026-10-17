@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+from datetime import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -16,6 +17,7 @@ from custom_components.gardena_smart_local_preview.const import (
     DEFAULT_MOWER_DURATION_HOURS,
 )
 from custom_components.gardena_smart_local_preview.lawn_mower import GardenaMower
+from custom_components.gardena_smart_local_preview.schedules import describe_schedule
 
 
 async def test_start_mowing_uses_default_duration(
@@ -98,3 +100,45 @@ async def test_start_mowing_rejects_a_distance_the_mower_cannot_use(
         await mower.async_start_mowing_for(distance=20)
 
     mock_device.build_start_mowing_obj.assert_not_called()
+
+
+async def test_set_schedule_writes_the_whole_list(
+    coordinator: MagicMock, entry: MagicMock, mock_device: MagicMock
+) -> None:
+    """The service replaces the device's schedule with what it was given."""
+    mock_device.model_definition.objects = {
+        "lemonbeat": {"resources": {"schedule_config": {}}}
+    }
+    mower = GardenaMower(coordinator, entry, mock_device)
+
+    await mower.async_set_schedule(
+        [
+            {
+                "days": ["monday", "tuesday"],
+                "start": time(7, 15),
+                "duration_minutes": 120,
+            }
+        ]
+    )
+
+    mock_device.build_set_resource_obj.assert_called_once()
+    args = mock_device.build_set_resource_obj.call_args.args
+    assert args[:3] == ("lemonbeat", 0, "schedule_config")
+    assert describe_schedule(args[3]) == [
+        {"days": ["monday", "tuesday"], "start": "07:15", "duration_minutes": 120}
+    ]
+
+
+async def test_set_schedule_refuses_a_device_without_one(
+    coordinator: MagicMock, entry: MagicMock, mock_device: MagicMock
+) -> None:
+    """A device with no schedule resource is not written to."""
+    mock_device.model_definition.objects = {"lemonbeat": {"resources": {}}}
+    mower = GardenaMower(coordinator, entry, mock_device)
+
+    with pytest.raises(HomeAssistantError):
+        await mower.async_set_schedule(
+            [{"days": ["monday"], "start": time(9, 0), "duration_minutes": 60}]
+        )
+
+    mock_device.build_set_resource_obj.assert_not_called()
