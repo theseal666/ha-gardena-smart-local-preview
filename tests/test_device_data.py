@@ -12,6 +12,7 @@ from unittest.mock import MagicMock
 from homeassistant.core import HomeAssistant
 
 from custom_components.gardena_smart_local_preview.device_data import (
+    has_command,
     has_resource,
     read_int,
     read_int_list,
@@ -26,6 +27,7 @@ def _device(values: dict[str, object] | None = None) -> MagicMock:
         "lemonbeat": {"resources": {"last_error_code": {"type": "vi", "access": "r"}}},
         "connection_status": {},
     }
+    device.model_definition.commands = {"trigger_data_update": 21, "reboot": 31}
     device.get_value.side_effect = lambda path: (values or {}).get(str(path))
     return device
 
@@ -38,6 +40,14 @@ def test_has_resource_follows_the_model_definition() -> None:
     assert has_resource(device, "lemonbeat", "position") is False
     assert has_resource(device, "connection_status", "online") is False
     assert has_resource(device, "mower_app", "error") is False
+
+
+def test_has_command_follows_the_model_definition() -> None:
+    """A command counts as available only if the model declares it."""
+    device = _device()
+
+    assert has_command(device, "trigger_data_update") is True
+    assert has_command(device, "wipe_map") is False
 
 
 def test_read_int_ignores_other_types() -> None:

@@ -207,6 +207,16 @@ cleared days ago.
   and payload bytes as attributes. Disabled by default: the stream is mostly
   informational.
 
+## Stale Values
+
+A Gen1 device reports on change, so a value that has not changed can be days
+old, and it stays that way across a Home Assistant restart: the gateway serves
+what it last heard. The **Refresh data** button (diagnostic, on every model
+whose definition carries the command) asks the device for a fresh report of
+everything, which is the only way to tell "nothing is wrong" from "nothing has
+been said in three days". The `reported_at` attribute on the error entities
+shows which of the two you are looking at.
+
 ## Mower Position
 
 Mowers with LONA report where they are, which gives them a `device_tracker`

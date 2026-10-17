@@ -30,6 +30,12 @@ def has_resource(device: Device, object_name: str, resource_name: str) -> bool:
     return isinstance(resources, dict) and resource_name in resources
 
 
+def has_command(device: Device, command_name: str) -> bool:
+    """Return True if the device's model declares the command."""
+    commands = getattr(device.model_definition, "commands", None)
+    return isinstance(commands, dict) and command_name in commands
+
+
 def read_value(
     device: Device,
     object_name: str,

@@ -20,6 +20,9 @@
       },
       "clear_schedules": {
         "name": "Clear schedules"
+      },
+      "refresh_data": {
+        "name": "Refresh data"
       }
     },
     "device_tracker": {
