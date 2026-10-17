@@ -39,6 +39,7 @@ from .device_data import (
     read_value,
 )
 from .entity import EntityFactories, GardenaEntity, async_setup_device_entities
+from .error_codes import error_name, error_names
 
 # State comes only from the coordinator's push (no polling, no actions) —
 # there is nothing here for PARALLEL_UPDATES to throttle
@@ -98,6 +99,9 @@ async def async_setup_entry(
                 GardenaErrorCodeSensor, coordinator, device
             )
         if has_resource(device, "lemonbeat", "last_error_code"):
+            entities["last_error"] = partial(
+                GardenaLastErrorSensor, coordinator, device
+            )
             entities["last_error_code"] = partial(
                 GardenaLastErrorCodeSensor, coordinator, device
             )
@@ -463,6 +467,52 @@ class GardenaErrorCodeSensor(GardenaEntity, SensorEntity):
             # up as the state.
             "error_codes": codes,
             "reported_at": read_reported_at(device, "device", "error_code")
+            if device
+            else None,
+        }
+
+
+class GardenaLastErrorSensor(GardenaEntity, SensorEntity):
+    """The last error a mower reported, by name.
+
+    The numeric code stays available both as an attribute and as its own
+    sensor: it is what an automation can act on for an error whose name is not
+    known yet, and what to quote when asking what a code means.
+    """
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options: ClassVar = error_names()
+    _attr_translation_key = "last_error"
+    _attr_icon = "mdi:alert-circle-outline"
+
+    def __init__(
+        self,
+        coordinator: GardenaSmartLocalCoordinator,
+        device: Device,
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._attr_unique_id = f"{device.id}_last_error"
+
+    def _code(self) -> int | None:
+        device = self.coordinator.data.get(self._device.id)
+        if not device:
+            return None
+        return read_int(device, "lemonbeat", "last_error_code")
+
+    @property
+    def native_value(self) -> str | None:
+        code = self._code()
+        return None if code is None else error_name(code)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        code = self._code()
+        if code is None:
+            return None
+        device = self.coordinator.data.get(self._device.id)
+        return {
+            "code": code,
+            "reported_at": read_reported_at(device, "lemonbeat", "last_error_code")
             if device
             else None,
         }

@@ -3,6 +3,12 @@
     "binary_sensor": {
       "frost_warning": {
         "name": "Frost warning"
+      },
+      "connection": {
+        "name": "Connection"
+      },
+      "problem": {
+        "name": "Needs attention"
       }
     },
     "button": {
@@ -128,6 +134,14 @@
       },
       "status_message_code": {
         "name": "Status message code"
+      },
+      "last_error": {
+        "name": "Last error",
+        "state": {
+          "none": "No error",
+          "no_loop_signal": "No loop signal",
+          "unknown": "Unknown error"
+        }
       }
     },
     "switch": {
