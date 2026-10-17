@@ -16,7 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import GardenaSmartLocalCoordinator
-from .device_data import has_resource, read_int
+from .device_data import has_resource, read_int, read_value
 from .entity import (
     EntityFactories,
     GardenaEntity,
@@ -30,6 +30,7 @@ from .entity import (
     get_pump_duration_minutes,
     get_valve_duration_minutes,
 )
+from .schedules import describe_schedule, entry_count, replace_entry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -67,6 +68,12 @@ async def async_setup_entry(
             entities["mower_duration"] = partial(
                 GardenaMowerDuration, coordinator, entry, device
             )
+        if has_resource(device, "lemonbeat", "schedule_config"):
+            raw = read_value(device, "lemonbeat", "schedule_config")
+            for index in range(entry_count(raw if isinstance(raw, bytes) else None)):
+                entities[f"schedule_duration_{index}"] = partial(
+                    GardenaScheduleDuration, coordinator, device, index
+                )
         if has_resource(device, "lemonbeat", "position_update_interval"):
             entities["position_update_interval"] = partial(
                 GardenaPositionUpdateInterval, coordinator, device
@@ -396,4 +403,63 @@ class GardenaPositionUpdateInterval(GardenaEntity, NumberEntity):
             "Set position update interval for device %s to %s ms",
             self._device.id,
             milliseconds,
+        )
+
+
+class GardenaScheduleDuration(GardenaEntity, NumberEntity):
+    """How long one of the device's schedules runs."""
+
+    _attr_native_min_value = 1
+    # A day. The resource holds two bytes and the device would take more, but
+    # a single entry that outlasts a day is a schedule for something else.
+    _attr_native_max_value = 1440
+    _attr_native_step = 5
+    _attr_native_unit_of_measurement = UnitOfTime.MINUTES
+    _attr_mode = NumberMode.BOX
+    _attr_translation_key = "schedule_duration"
+    _attr_icon = "mdi:timer-edit-outline"
+
+    def __init__(
+        self,
+        coordinator: GardenaSmartLocalCoordinator,
+        device: Device,
+        index: int,
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._index = index
+        self._attr_unique_id = f"{device.id}_schedule_duration_{index}"
+        self._attr_translation_placeholders = {"number": str(index + 1)}
+
+    def _schedule(self) -> bytes | None:
+        device = self.coordinator.data.get(self._device.id)
+        if not device:
+            return None
+        raw = read_value(device, "lemonbeat", "schedule_config")
+        return raw if isinstance(raw, bytes) else None
+
+    @property
+    def native_value(self) -> float | None:
+        raw = self._schedule()
+        if raw is None:
+            return None
+        entries = describe_schedule(raw)
+        if self._index >= len(entries):
+            return None
+        return entries[self._index]["duration_minutes"]
+
+    async def async_set_native_value(self, value: float) -> None:
+        raw = self._schedule()
+        if raw is None:
+            return
+        config = replace_entry(raw, self._index, duration_minutes=int(value))
+        await self._send_confirmed_command(
+            self._device.build_set_resource_obj(
+                "lemonbeat", 0, "schedule_config", config
+            )
+        )
+        _LOGGER.info(
+            "Set schedule %s on device %s to %s minutes",
+            self._index + 1,
+            self._device.id,
+            int(value),
         )

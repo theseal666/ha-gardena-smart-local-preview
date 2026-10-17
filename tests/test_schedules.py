@@ -9,8 +9,11 @@ from __future__ import annotations
 import pytest
 
 from custom_components.gardena_smart_local_preview.schedules import (
+    add_entry,
     build_schedule,
     describe_schedule,
+    remove_entry,
+    replace_entry,
 )
 
 # Read off a smart SILENO city/life (with LONA): one entry, Monday to
@@ -127,3 +130,76 @@ def test_without_a_template_the_byte_is_zero() -> None:
 
     assert config[0] == 0x00
     assert config == REAL_SCHEDULE
+
+
+def test_replaces_one_entry_and_leaves_the_rest() -> None:
+    """Editing a start time rewrites the blob without touching the others."""
+    two = build_schedule(
+        [
+            {"days": ["monday"], "start": "07:00", "duration_minutes": 60},
+            {"days": ["sunday"], "start": "18:15", "duration_minutes": 90},
+        ]
+    )
+
+    edited = replace_entry(two, 0, start="08:45")
+
+    assert describe_schedule(edited) == [
+        {"days": ["monday"], "start": "08:45", "duration_minutes": 60},
+        {"days": ["sunday"], "start": "18:15", "duration_minutes": 90},
+    ]
+
+
+def test_editing_keeps_the_devices_own_byte() -> None:
+    """An edit must not drop the flag the device holds in each entry."""
+    edited = replace_entry(CHANGED_SCHEDULE, 0, duration_minutes=240)
+
+    assert edited[0] == 0x80
+    assert describe_schedule(edited)[0]["duration_minutes"] == 240
+
+
+def test_adds_to_what_the_device_already_holds() -> None:
+    """Adding appends rather than replacing."""
+    added = add_entry(
+        CHANGED_SCHEDULE, {"days": ["sunday"], "start": "12:00", "duration_minutes": 60}
+    )
+
+    described = describe_schedule(added)
+    assert len(described) == 2
+    assert described[0]["start"] == "10:30"
+    assert described[1]["days"] == ["sunday"]
+
+
+def test_adds_to_an_empty_schedule() -> None:
+    """A device with no schedule can be given its first one."""
+    added = add_entry(
+        None, {"days": ["monday"], "start": "09:00", "duration_minutes": 60}
+    )
+
+    assert describe_schedule(added) == [
+        {"days": ["monday"], "start": "09:00", "duration_minutes": 60}
+    ]
+
+
+def test_removes_one_entry() -> None:
+    """Removing a slot leaves the others in order."""
+    two = add_entry(
+        CHANGED_SCHEDULE, {"days": ["sunday"], "start": "12:00", "duration_minutes": 60}
+    )
+
+    assert describe_schedule(remove_entry(two, 0)) == [
+        {"days": ["sunday"], "start": "12:00", "duration_minutes": 60}
+    ]
+
+
+def test_removing_the_last_entry_empties_the_schedule() -> None:
+    """An empty schedule is an empty blob, as a device with none reports."""
+    assert remove_entry(CHANGED_SCHEDULE, 0) == b""
+
+
+@pytest.mark.parametrize("index", [-1, 1, 99])
+def test_editing_a_slot_that_does_not_exist_is_refused(index: int) -> None:
+    """A slot number from a stale dashboard does not rewrite slot zero."""
+    with pytest.raises(ValueError):
+        replace_entry(CHANGED_SCHEDULE, index, duration_minutes=60)
+    with pytest.raises(ValueError):
+        remove_entry(CHANGED_SCHEDULE, index)

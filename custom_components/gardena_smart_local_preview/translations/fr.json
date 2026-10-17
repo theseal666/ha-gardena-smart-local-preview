@@ -63,6 +63,9 @@
       },
       "position_update_interval": {
         "name": "Intervalle de transmission de la position"
+      },
+      "schedule_duration": {
+        "name": "Durée du programme {number}"
       }
     },
     "select": {
@@ -196,6 +199,11 @@
     "switch": {
       "position_reporting": {
         "name": "Transmission de la position"
+      }
+    },
+    "time": {
+      "schedule_start": {
+        "name": "Début du programme {number}"
       }
     },
     "valve": {

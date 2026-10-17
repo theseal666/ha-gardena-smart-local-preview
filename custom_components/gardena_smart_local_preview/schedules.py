@@ -114,3 +114,38 @@ def build_schedule(
             )
         )
     return build_gen1_schedule_config(built)
+
+
+def entry_count(raw: bytes | None) -> int:
+    """Return how many entries a schedule blob holds."""
+    return len(parse_gen1_schedule_config(raw)) if raw else 0
+
+
+def replace_entry(raw: bytes, index: int, **changes: Any) -> bytes:
+    """Return the schedule with one entry's days, start or duration changed.
+
+    The whole schedule is rebuilt because the device holds it as one blob,
+    and every other entry is passed back exactly as it was read.
+    """
+    entries = describe_schedule(raw)
+    if not 0 <= index < len(entries):
+        raise ValueError(f"No schedule in slot {index}")
+    entries[index] = {**entries[index], **changes}
+    return build_schedule(entries, template=raw)
+
+
+def add_entry(raw: bytes | None, entry: dict[str, Any]) -> bytes:
+    """Return the schedule with one more entry appended."""
+    entries = describe_schedule(raw) if raw else []
+    return build_schedule([*entries, entry], template=raw)
+
+
+def remove_entry(raw: bytes, index: int) -> bytes:
+    """Return the schedule without the entry in the given slot."""
+    entries = describe_schedule(raw)
+    if not 0 <= index < len(entries):
+        raise ValueError(f"No schedule in slot {index}")
+    remaining = [e for position, e in enumerate(entries) if position != index]
+    # An empty schedule is an empty blob, which is how a device with no
+    # schedule reports itself
+    return build_schedule(remaining, template=raw) if remaining else b""

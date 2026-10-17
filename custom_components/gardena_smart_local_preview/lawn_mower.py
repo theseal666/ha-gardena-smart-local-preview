@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import time as dt_time
 from functools import partial
 
 import voluptuous as vol
@@ -31,7 +32,13 @@ from .entity import (
     async_setup_device_entities,
     get_mower_duration_hours,
 )
-from .schedules import MAX_SCHEDULES, WEEKDAYS, build_schedule
+from .schedules import (
+    MAX_SCHEDULES,
+    WEEKDAYS,
+    add_entry,
+    build_schedule,
+    remove_entry,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -87,6 +94,28 @@ async def async_setup_entry(
             )
         },
         "async_set_schedule",
+    )
+
+    platform.async_register_entity_service(
+        "add_schedule",
+        {
+            vol.Required("days"): vol.All([vol.In(WEEKDAYS)], vol.Length(min=1)),
+            vol.Required("start"): cv.time,
+            vol.Required("duration_minutes"): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=60 * 24 * 7)
+            ),
+        },
+        "async_add_schedule",
+    )
+    platform.async_register_entity_service(
+        "remove_schedule",
+        {
+            # Counted the way the entities are named, from one
+            vol.Required("slot"): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=MAX_SCHEDULES)
+            )
+        },
+        "async_remove_schedule",
     )
 
     def _entities_for_device(device: Device) -> EntityFactories:
@@ -204,6 +233,52 @@ class GardenaMower(GardenaEntity, LawnMowerEntity):
         _LOGGER.info(
             "Wrote %s schedule(s) to device %s", len(schedules), self._device.id
         )
+
+    def _held_schedule(self) -> bytes | None:
+        if not has_resource(self._device, "lemonbeat", "schedule_config"):
+            raise HomeAssistantError(
+                f"Device {self._device.id} does not hold a schedule this "
+                f"integration can write"
+            )
+        held = read_value(self._device, "lemonbeat", "schedule_config")
+        return held if isinstance(held, bytes) else None
+
+    async def _async_write_schedule(self, config: bytes) -> None:
+        await self._send_confirmed_command(
+            self._device.build_set_resource_obj(
+                "lemonbeat", 0, "schedule_config", config
+            )
+        )
+
+    async def async_add_schedule(
+        self, days: list[str], start: dt_time, duration_minutes: int
+    ) -> None:
+        try:
+            config = add_entry(
+                self._held_schedule(),
+                {
+                    "days": days,
+                    "start": start.strftime("%H:%M"),
+                    "duration_minutes": duration_minutes,
+                },
+            )
+        except ValueError as err:
+            raise HomeAssistantError(f"Invalid schedule: {err}") from err
+
+        await self._async_write_schedule(config)
+        _LOGGER.info("Added a schedule to device %s", self._device.id)
+
+    async def async_remove_schedule(self, slot: int) -> None:
+        held = self._held_schedule()
+        if held is None:
+            raise HomeAssistantError(f"Device {self._device.id} holds no schedule")
+        try:
+            config = remove_entry(held, slot - 1)
+        except ValueError as err:
+            raise HomeAssistantError(str(err)) from err
+
+        await self._async_write_schedule(config)
+        _LOGGER.info("Removed schedule %s from device %s", slot, self._device.id)
 
     async def async_dock(self) -> None:
         await self._send_confirmed_command(self._device.build_stop_mowing_obj())

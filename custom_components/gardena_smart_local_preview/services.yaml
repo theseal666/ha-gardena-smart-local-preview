@@ -88,3 +88,53 @@ set_schedule:
           duration_minutes: 340
       selector:
         object:
+
+add_schedule:
+  target:
+    entity:
+      integration: gardena_smart_local_preview
+      domain: lawn_mower
+  fields:
+    days:
+      required: true
+      example: "[monday, thursday]"
+      selector:
+        select:
+          multiple: true
+          options:
+            - monday
+            - tuesday
+            - wednesday
+            - thursday
+            - friday
+            - saturday
+            - sunday
+    start:
+      required: true
+      example: "09:30:00"
+      selector:
+        time:
+    duration_minutes:
+      required: true
+      example: 180
+      selector:
+        number:
+          min: 1
+          max: 1440
+          unit_of_measurement: min
+          mode: box
+
+remove_schedule:
+  target:
+    entity:
+      integration: gardena_smart_local_preview
+      domain: lawn_mower
+  fields:
+    slot:
+      required: true
+      example: 1
+      selector:
+        number:
+          min: 1
+          max: 14
+          mode: box

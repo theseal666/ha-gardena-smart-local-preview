@@ -242,8 +242,18 @@ shows which of the two you are looking at.
   writing it replaces what was there, so the action takes the whole list
   rather than a single entry, and refuses anything the device would not
   accept before it reaches the mower.
+- **Schedule N start** and **Schedule N duration** — one editable entity per
+  schedule the device holds, so a start time can be moved or a run shortened
+  by changing a value rather than by restating the whole schedule. The
+  entities appear and disappear with the schedules themselves.
+- **`add_schedule`** appends one entry, **`remove_schedule`** drops the entry
+  in a slot, counted from one the way the entities are named.
 - **Clear schedules** empties it, and **Resume schedule** releases a mower
   that was parked.
+
+Every one of these rebuilds the whole blob from what the device currently
+holds, so an edit never carries a stale copy of the other entries back to the
+mower.
 
 ```yaml
 action: gardena_smart_local_preview.set_schedule

@@ -63,6 +63,9 @@
       },
       "position_update_interval": {
         "name": "Position update interval"
+      },
+      "schedule_duration": {
+        "name": "Schedule {number} duration"
       }
     },
     "select": {
@@ -196,6 +199,11 @@
     "switch": {
       "position_reporting": {
         "name": "Position reporting"
+      }
+    },
+    "time": {
+      "schedule_start": {
+        "name": "Schedule {number} start"
       }
     },
     "valve": {
