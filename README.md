@@ -196,6 +196,15 @@ gateway's own timestamp for the value. A device keeps reporting the last value
 it saw, so `reported_at` is what separates a current fault from one that
 cleared days ago.
 
+- **Last error** (Gen1 mowers) — the last error by name, for example
+  `No loop signal`. The local API carries no table to resolve a code to text,
+  so the names in `error_codes.py` are added one at a time and only once the
+  meaning has been observed on a device: the number this integration reports,
+  and the text the device gives the same event — the mower's display, or the
+  notification the GARDENA app pushes at that timestamp. A code with no
+  confirmed name reports `Unknown error` and keeps its number in the `code`
+  attribute, so an unnamed error stays actionable, and is what to quote when
+  asking what a code means.
 - **Error code** — the error(s) a device currently reports. `0` means no error.
   When more than one is active, the state shows the first and the
   `error_codes` attribute lists all of them.
@@ -223,6 +232,38 @@ original timestamp — reading those two explicitly does not change it either,
 because the gateway serves them as the device last reported them. For those,
 `reported_at` is the only way to tell how old the value is. The `reported_at` attribute on the error entities
 shows which of the two you are looking at.
+
+## Gateway Gone, Device Silent, Mower Stuck
+
+These are three different problems, and `unavailable` alone cannot tell them
+apart. Two binary sensors separate them:
+
+- **Connection** (`connectivity`, diagnostic) — whether the device answers the
+  gateway. Unlike every other entity it stays available when the device goes
+  quiet, because that is exactly what it is there to report.
+- **Needs attention** (`problem`, mowers) — whether the mower reports an
+  error, either as its state or as a code it has logged.
+
+| Connection | Needs attention | What it means |
+| ---------- | --------------- | ------------- |
+| `on` | `off` | Everything is talking and nothing is wrong |
+| `on` | `on` | The mower is stuck and someone has to go out to it |
+| `off` | unavailable | The mower has stopped answering; the gateway is fine |
+| unavailable | unavailable | The gateway or this integration is the problem |
+
+> [!NOTE]
+> A mower left in an unresolved error eventually stops answering altogether —
+> the one this was developed against went quiet 45 minutes after it faulted
+> and stayed quiet for nearly two hours, with the gateway up throughout. The
+> silence is therefore as worth alerting on as the error itself:
+>
+> ```yaml
+> triggers:
+>   - trigger: state
+>     entity_id: binary_sensor.mower_connection
+>     to: "off"
+>     for: "00:30:00"
+> ```
 
 ## Mower Position
 
