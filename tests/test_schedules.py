@@ -122,9 +122,8 @@ def test_a_new_entry_inherits_the_devices_own_byte() -> None:
 
 
 def test_without_a_template_the_byte_is_zero() -> None:
-    """A device with no schedule yet gets the value the other mower showed."""
-    config = build_schedule(
-        [{"days": ["monday"], "start": "09:30", "duration_minutes": 340}]
-    )
+    """With nothing to carry over, an entry is written with a plain zero."""
+    config = build_schedule(describe_schedule(REAL_SCHEDULE))
 
+    assert config[0] == 0x00
     assert config == REAL_SCHEDULE
