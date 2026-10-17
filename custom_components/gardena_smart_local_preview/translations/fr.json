@@ -20,6 +20,9 @@
       },
       "clear_schedules": {
         "name": "Effacer les programmations"
+      },
+      "refresh_data": {
+        "name": "Actualiser les données"
       }
     },
     "device_tracker": {

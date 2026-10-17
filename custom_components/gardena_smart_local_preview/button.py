@@ -16,6 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import GardenaSmartLocalCoordinator
+from .device_data import has_command
 from .entity import EntityFactories, GardenaEntity, async_setup_device_entities
 
 _LOGGER = logging.getLogger(__name__)
@@ -49,6 +50,10 @@ async def async_setup_entry(
         if hasattr(device, "schedule_count"):
             entities["clear_schedules"] = partial(
                 GardenaClearSchedulesButton, coordinator, device
+            )
+        if has_command(device, "trigger_data_update"):
+            entities["refresh_data"] = partial(
+                GardenaRefreshDataButton, coordinator, device
             )
         return entities
 
@@ -129,3 +134,39 @@ class GardenaClearSchedulesButton(GardenaEntity, ButtonEntity):
     async def async_press(self) -> None:
         await self._send_confirmed_command(self._device.build_clear_schedules_obj())
         _LOGGER.info("Cleared schedules for device %s", self._device.id)
+
+
+class GardenaRefreshDataButton(GardenaEntity, ButtonEntity):
+    """Ask a device to report its current state again.
+
+    A Gen1 device reports on change, so a value that has not changed can be
+    days old and survives a Home Assistant restart that way: the mower this
+    was written against served a three-day-old status and error code, which
+    every entity reading them then presents as current. This asks the device
+    for a fresh report instead of waiting for it to volunteer one.
+
+    Measured scope, on a Gen1 mower: status, battery level, cutting time and
+    the last error code all carry a fresh timestamp a second after the press.
+    The standard error resource and the status message do not, and reading
+    them explicitly does not change that — the gateway serves the value as the
+    device last reported it, and the device reports those two only when they
+    change. Their age is what the entities' `reported_at` attribute is for.
+    """
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_translation_key = "refresh_data"
+    _attr_icon = "mdi:refresh"
+
+    def __init__(
+        self, coordinator: GardenaSmartLocalCoordinator, device: Device
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._attr_unique_id = f"{device.id}_refresh_data"
+
+    async def async_press(self) -> None:
+        await self._send_confirmed_command(
+            self._device.build_command_obj(
+                self._device.get_command("trigger_data_update")
+            )
+        )
+        _LOGGER.info("Requested a data update from device %s", self._device.id)

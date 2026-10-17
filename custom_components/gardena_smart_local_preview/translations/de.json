@@ -20,6 +20,9 @@
       },
       "clear_schedules": {
         "name": "Zeitpläne löschen"
+      },
+      "refresh_data": {
+        "name": "Daten aktualisieren"
       }
     },
     "device_tracker": {
