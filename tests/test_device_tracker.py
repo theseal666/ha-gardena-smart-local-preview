@@ -44,20 +44,48 @@ def _position(
 
 
 def test_prefers_the_lona_fix(coordinator: MagicMock, mock_device: MagicMock) -> None:
-    """The fix the mower navigates by wins over the raw GNSS one."""
+    """With both fixes in the same garden, the LONA one is the more precise."""
     mock_device.position = _position(
         lona_latitude=578947905,
         lona_longitude=119506228,
         lona_is_ready=True,
-        gnss_latitude=578000000,
-        gnss_longitude=119000000,
-        accuracy=3,
+        # ~20 m away, as two fixes of one garden are
+        gnss_latitude=578949705,
+        gnss_longitude=119506228,
+        accuracy=1104,
     )
     tracker = GardenaMowerTracker(coordinator, mock_device)
 
-    assert tracker.latitude == 57.8947905
-    assert tracker.longitude == 11.9506228
-    assert tracker.location_accuracy == 3
+    assert tracker.latitude == pytest.approx(57.8947905)
+    assert tracker.longitude == pytest.approx(11.9506228)
+    assert tracker.extra_state_attributes["fix_source"] == "lona"
+
+
+def test_rejects_a_lona_fix_from_another_garden(
+    coordinator: MagicMock, mock_device: MagicMock
+) -> None:
+    """A mower that changed gardens still reports the old one as ready.
+
+    Seen on a second-hand mower: a ready LONA fix 25 km from its own GNSS fix,
+    which would otherwise put the mower in the previous owner's garden.
+    """
+    mock_device.position = _position(
+        lona_latitude=576723413,
+        lona_longitude=118645743,
+        lona_is_ready=True,
+        gnss_latitude=578947459,
+        gnss_longitude=119504922,
+        accuracy=1104,
+    )
+    tracker = GardenaMowerTracker(coordinator, mock_device)
+
+    assert tracker.latitude == pytest.approx(57.8947459)
+    assert tracker.longitude == pytest.approx(11.9504922)
+    attributes = tracker.extra_state_attributes
+    assert attributes["fix_source"] == "gnss"
+    # The rejected fix stays visible rather than being dropped silently
+    assert attributes["lona_latitude"] == pytest.approx(57.6723413)
+    assert attributes["lona_longitude"] == pytest.approx(11.8645743)
 
 
 def test_falls_back_to_the_gnss_fix(
@@ -71,8 +99,41 @@ def test_falls_back_to_the_gnss_fix(
 
     assert tracker.latitude == pytest.approx(57.8)
     assert tracker.longitude == pytest.approx(11.9)
-    assert tracker.location_accuracy == 12
-    assert tracker.extra_state_attributes["lona_is_ready"] is False
+    attributes = tracker.extra_state_attributes
+    assert attributes["fix_source"] == "gnss"
+    assert attributes["lona_is_ready"] is False
+    assert attributes["lona_latitude"] is None
+
+
+def test_uses_the_lona_fix_when_gnss_has_none(
+    coordinator: MagicMock, mock_device: MagicMock
+) -> None:
+    """Without a GNSS fix there is nothing to cross-check against."""
+    mock_device.position = _position(
+        lona_latitude=578947905, lona_longitude=119506228, lona_is_ready=True
+    )
+    tracker = GardenaMowerTracker(coordinator, mock_device)
+
+    assert tracker.latitude == pytest.approx(57.8947905)
+    assert tracker.extra_state_attributes["fix_source"] == "lona"
+
+
+def test_accuracy_is_not_published_as_metres(
+    coordinator: MagicMock, mock_device: MagicMock
+) -> None:
+    """The frame's accuracy figure is in an undocumented unit.
+
+    Home Assistant would draw `location_accuracy` as a radius in metres, and a
+    mower sitting in its charging station reports 1104, so the figure is kept
+    as an attribute instead.
+    """
+    mock_device.position = _position(
+        gnss_latitude=578947459, gnss_longitude=119504922, accuracy=1104
+    )
+    tracker = GardenaMowerTracker(coordinator, mock_device)
+
+    assert tracker.location_accuracy == 0
+    assert tracker.extra_state_attributes["gnss_horizontal_accuracy"] == 1104
 
 
 def test_position_is_unknown_while_reporting_is_off(
@@ -84,7 +145,6 @@ def test_position_is_unknown_while_reporting_is_off(
 
     assert tracker.latitude is None
     assert tracker.longitude is None
-    assert tracker.location_accuracy == 0
     assert tracker.extra_state_attributes is None
 
 
@@ -95,6 +155,7 @@ def test_empty_frame_is_unknown(coordinator: MagicMock, mock_device: MagicMock) 
 
     assert tracker.latitude is None
     assert tracker.longitude is None
+    assert tracker.extra_state_attributes["fix_source"] is None
 
 
 def test_attributes_keep_the_rest_of_the_frame(
@@ -105,8 +166,8 @@ def test_attributes_keep_the_rest_of_the_frame(
         lona_latitude=578947905,
         lona_longitude=119506228,
         lona_is_ready=True,
-        gnss_latitude=578000000,
-        gnss_longitude=119000000,
+        gnss_latitude=578949705,
+        gnss_longitude=119506228,
         accuracy=3,
     )
     tracker = GardenaMowerTracker(coordinator, mock_device)
@@ -115,8 +176,8 @@ def test_attributes_keep_the_rest_of_the_frame(
     assert attributes["heading"] == 90.0
     assert attributes["compass_heading"] == 180.0
     assert attributes["compass_is_calibrated"] is True
-    assert attributes["gnss_latitude"] == pytest.approx(57.8)
+    assert attributes["gnss_latitude"] == pytest.approx(57.8949705)
     assert attributes["gnss_horizontal_accuracy"] == 3
-    # The coordinates themselves are the state, not an attribute
+    # The reported coordinates are the state, not an attribute
     assert "latitude" not in attributes
     assert "longitude" not in attributes

@@ -214,9 +214,23 @@ request, so reporting is a switch rather than something that is always on:
   while the switch stays on, so a mowing session longer than an hour keeps
   being tracked. It turns itself off when the mower stops reporting.
 - **Position update interval** — how often a position is sent while reporting.
-- **Position** — the mower's position, from the LONA fix it navigates by, or
-  the raw GNSS fix for as long as LONA has no position yet. The heading, the
-  compass and the GNSS fix are kept as attributes.
+- **Position** — the mower's position. Each frame carries two fixes: the LONA
+  one the mower navigates by and the raw GNSS one. The LONA fix is used when
+  the frame says it is ready and the two agree; otherwise the GNSS fix is. The
+  `fix_source` attribute says which one the state came from, and both fixes,
+  the heading and the compass stay available as attributes.
+
+> [!NOTE]
+> A mower that has changed gardens keeps reporting the previous garden's LONA
+> fix, with its ready flag set, until it has mown the new one — 25 km off, in
+> the case this was found on. That is why the two fixes are cross-checked
+> instead of trusting the ready flag.
+
+> [!NOTE]
+> The frame's accuracy figure is passed through as an attribute but not as
+> `location_accuracy`: Home Assistant draws that as a radius in metres, and the
+> unit the mower reports it in is undocumented (a mower in its charging station
+> reports 1104).
 
 > [!NOTE]
 > This is the mower's position, not the map it has learnt of your garden. The
