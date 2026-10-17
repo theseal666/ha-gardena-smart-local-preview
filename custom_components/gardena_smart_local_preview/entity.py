@@ -207,6 +207,11 @@ def async_set_mower_duration_hours(
 class GardenaEntity(CoordinatorEntity[GardenaSmartLocalCoordinator]):
     _attr_has_entity_name = True
 
+    # An entity whose whole job is to report whether the device is talking
+    # cannot go unavailable the moment it stops — it sets this to False and
+    # then only follows the gateway connection.
+    _requires_device_online = True
+
     def __init__(
         self,
         coordinator: GardenaSmartLocalCoordinator,
@@ -230,6 +235,8 @@ class GardenaEntity(CoordinatorEntity[GardenaSmartLocalCoordinator]):
         if not self.coordinator.connected:
             return False
         device = self.coordinator.data.get(self._device.id)
+        if not self._requires_device_online:
+            return device is not None
         return bool(device and device.is_online)
 
     @callback
