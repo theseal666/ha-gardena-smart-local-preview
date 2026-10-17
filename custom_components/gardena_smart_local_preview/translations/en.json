@@ -29,6 +29,18 @@
       },
       "refresh_data": {
         "name": "Refresh data"
+      },
+      "measure_guide_wire": {
+        "name": "Measure guide wire"
+      },
+      "wipe_map": {
+        "name": "Wipe map"
+      },
+      "wipe_zones": {
+        "name": "Wipe zones"
+      },
+      "wipe_map_and_zones": {
+        "name": "Wipe map and zones"
       }
     },
     "device_tracker": {
@@ -141,6 +153,37 @@
           "none": "No error",
           "no_loop_signal": "No loop signal",
           "unknown": "Unknown error"
+        }
+      },
+      "cutting_time": {
+        "name": "Cutting time"
+      },
+      "running_time": {
+        "name": "Running time"
+      },
+      "charging_cycles": {
+        "name": "Charging cycles"
+      },
+      "collisions": {
+        "name": "Collisions"
+      },
+      "guide_wire_length": {
+        "name": "Guide wire length"
+      },
+      "next_start": {
+        "name": "Next start"
+      },
+      "next_start_source": {
+        "name": "Next start source",
+        "state": {
+          "no_source": "Nothing planned",
+          "daily_limit": "Daily limit",
+          "week_timer": "Week timer",
+          "countdown": "Countdown",
+          "charging": "Charging",
+          "auto_timer": "Auto timer",
+          "frost": "Frost",
+          "unknown": "Unknown"
         }
       }
     },

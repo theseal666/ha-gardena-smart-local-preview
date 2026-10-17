@@ -55,6 +55,15 @@ async def async_setup_entry(
             entities["refresh_data"] = partial(
                 GardenaRefreshDataButton, coordinator, device
             )
+        if has_command(device, "trigger_guide_wire_length_measurement"):
+            entities["measure_guide_wire"] = partial(
+                GardenaMeasureGuideWireButton, coordinator, device
+            )
+        for command, name in WIPE_BUTTONS.items():
+            if has_command(device, command):
+                entities[command] = partial(
+                    GardenaWipeButton, coordinator, device, command, name
+                )
         return entities
 
     async_setup_device_entities(
@@ -170,3 +179,65 @@ class GardenaRefreshDataButton(GardenaEntity, ButtonEntity):
             )
         )
         _LOGGER.info("Requested a data update from device %s", self._device.id)
+
+
+# What the mower has learnt about a garden, and the commands that throw it
+# away. All off by default: they are not undoable, and a mower that has lost
+# its map has to learn the garden again.
+WIPE_BUTTONS = {
+    "wipe_map": "wipe_map",
+    "wipe_zones": "wipe_zones",
+    "wipe_map_and_zones": "wipe_map_and_zones",
+}
+
+
+class GardenaMeasureGuideWireButton(GardenaEntity, ButtonEntity):
+    """Ask the mower to measure its guide wire.
+
+    The length it finds lands in the guide wire length sensor, and a reading
+    that has changed is a wire that has been damaged, lengthened or shortened.
+    """
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_translation_key = "measure_guide_wire"
+    _attr_icon = "mdi:tape-measure"
+
+    def __init__(
+        self, coordinator: GardenaSmartLocalCoordinator, device: Device
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._attr_unique_id = f"{device.id}_measure_guide_wire"
+
+    async def async_press(self) -> None:
+        await self._send_confirmed_command(
+            self._device.build_command_obj(
+                self._device.get_command("trigger_guide_wire_length_measurement")
+            )
+        )
+        _LOGGER.info("Started a guide wire measurement on device %s", self._device.id)
+
+
+class GardenaWipeButton(GardenaEntity, ButtonEntity):
+    """Throw away a map or the zones the mower has learnt."""
+
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_entity_registry_enabled_default = False
+    _attr_icon = "mdi:delete-alert-outline"
+
+    def __init__(
+        self,
+        coordinator: GardenaSmartLocalCoordinator,
+        device: Device,
+        command: str,
+        translation_key: str,
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._command = command
+        self._attr_unique_id = f"{device.id}_{command}"
+        self._attr_translation_key = translation_key
+
+    async def async_press(self) -> None:
+        await self._send_confirmed_command(
+            self._device.build_command_obj(self._device.get_command(self._command))
+        )
+        _LOGGER.info("Sent %s to device %s", self._command, self._device.id)

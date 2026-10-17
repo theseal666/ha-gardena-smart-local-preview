@@ -233,6 +233,33 @@ because the gateway serves them as the device last reported them. For those,
 `reported_at` is the only way to tell how old the value is. The `reported_at` attribute on the error entities
 shows which of the two you are looking at.
 
+## What a Mower Reports About Itself
+
+Everything below comes from resources the mower already sends; none of it was
+exposed before.
+
+- **Cutting time** / **Running time** — hours the cutting disc and the wheel
+  motors have run. Both are `total_increasing`, so Home Assistant graphs them
+  and can tell you how much a season cost.
+- **Charging cycles** — what actually wears the battery out.
+- **Collisions** — how often the mower has hit something, which is the number
+  that moves when a garden gains an obstacle.
+- **Guide wire length** — as last measured, in metres, with a **Measure guide
+  wire** button to take a fresh measurement. A reading that has changed is a
+  wire that has been damaged, lengthened or shortened.
+- **Next start** and **Next start source** — when the mower intends to set off
+  on its own, and what will send it: the week timer, a countdown, the daily
+  limit, frost, and so on.
+
+Mowers that navigate can also be sent out to a far corner: `start_mowing`
+takes an optional `distance` in metres, which the mower drives along the
+boundary wire before it starts cutting.
+
+> [!WARNING]
+> **Wipe map**, **Wipe zones** and **Wipe map and zones** throw away what the
+> mower has learnt about a garden, and it has to learn it again. They are off
+> by default, like clearing the schedules.
+
 ## Gateway Gone, Device Silent, Mower Stuck
 
 These are three different problems, and `unavailable` alone cannot tell them

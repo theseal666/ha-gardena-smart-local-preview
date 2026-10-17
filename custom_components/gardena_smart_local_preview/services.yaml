@@ -64,3 +64,12 @@ start_mowing:
           max: 6
           unit_of_measurement: h
           mode: box
+    distance:
+      required: false
+      example: 20
+      selector:
+        number:
+          min: 0
+          max: 1000
+          unit_of_measurement: m
+          mode: box

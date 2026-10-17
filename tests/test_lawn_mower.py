@@ -8,6 +8,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+from homeassistant.exceptions import HomeAssistantError
+
 from custom_components.gardena_smart_local_preview.const import (
     CONF_MOWER_DURATION,
     DEFAULT_MOWER_DURATION_HOURS,
@@ -68,3 +71,30 @@ async def test_dock_stops_mowing(
     await mower.async_dock()
 
     mock_device.build_stop_mowing_obj.assert_called_once_with()
+
+
+async def test_start_mowing_with_a_distance_from_the_station(
+    coordinator: MagicMock, entry: MagicMock, mock_device: MagicMock
+) -> None:
+    """A distance sends the manual start to a far corner of the garden."""
+    mock_device.model_definition.objects = {
+        "lemonbeat": {"resources": {"mower_timer_with_distance": {}}}
+    }
+    mower = GardenaMower(coordinator, entry, mock_device)
+
+    await mower.async_start_mowing_for(duration=2, distance=20)
+
+    mock_device.build_start_mowing_obj.assert_called_once_with(7200, 20)
+
+
+async def test_start_mowing_rejects_a_distance_the_mower_cannot_use(
+    coordinator: MagicMock, entry: MagicMock, mock_device: MagicMock
+) -> None:
+    """A mower without the resource is not sent a command it cannot answer."""
+    mock_device.model_definition.objects = {"lemonbeat": {"resources": {}}}
+    mower = GardenaMower(coordinator, entry, mock_device)
+
+    with pytest.raises(HomeAssistantError):
+        await mower.async_start_mowing_for(distance=20)
+
+    mock_device.build_start_mowing_obj.assert_not_called()
