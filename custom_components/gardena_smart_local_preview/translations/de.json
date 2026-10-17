@@ -3,6 +3,12 @@
     "binary_sensor": {
       "frost_warning": {
         "name": "Frostwarnung"
+      },
+      "connection": {
+        "name": "Verbindung"
+      },
+      "problem": {
+        "name": "Eingriff nötig"
       }
     },
     "button": {
@@ -128,6 +134,14 @@
       },
       "status_message_code": {
         "name": "Code der Statusmeldung"
+      },
+      "last_error": {
+        "name": "Letzter Fehler",
+        "state": {
+          "none": "Kein Fehler",
+          "no_loop_signal": "Kein Schleifensignal",
+          "unknown": "Unbekannter Fehler"
+        }
       }
     },
     "switch": {

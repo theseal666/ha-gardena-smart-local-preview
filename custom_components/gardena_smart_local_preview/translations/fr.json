@@ -3,6 +3,12 @@
     "binary_sensor": {
       "frost_warning": {
         "name": "Alerte gel"
+      },
+      "connection": {
+        "name": "Connexion"
+      },
+      "problem": {
+        "name": "Intervention requise"
       }
     },
     "button": {
@@ -128,6 +134,14 @@
       },
       "status_message_code": {
         "name": "Code du message d'état"
+      },
+      "last_error": {
+        "name": "Dernière erreur",
+        "state": {
+          "none": "Aucune erreur",
+          "no_loop_signal": "Pas de signal du câble périphérique",
+          "unknown": "Erreur inconnue"
+        }
       }
     },
     "switch": {

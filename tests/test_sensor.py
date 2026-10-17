@@ -16,6 +16,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.gardena_smart_local_preview.sensor import (
     GardenaErrorCodeSensor,
     GardenaLastErrorCodeSensor,
+    GardenaLastErrorSensor,
     GardenaLastErrorTimeSensor,
     GardenaStatusMessageCodeSensor,
 )
@@ -137,3 +138,48 @@ def test_reported_at_is_unknown_without_a_timestamp(
     sensor = GardenaErrorCodeSensor(coordinator, mock_device)
 
     assert sensor.extra_state_attributes == {"error_codes": [0], "reported_at": None}
+
+
+def test_last_error_names_a_confirmed_code(
+    coordinator: MagicMock, mock_device: MagicMock, values: dict[str, object]
+) -> None:
+    """A code whose meaning has been observed is reported by name."""
+    values["lemonbeat/0/last_error_code"] = 2
+    sensor = GardenaLastErrorSensor(coordinator, mock_device)
+
+    assert sensor.native_value == "no_loop_signal"
+    assert sensor.extra_state_attributes["code"] == 2
+    assert sensor.native_value in sensor.options
+
+
+def test_last_error_keeps_an_unnamed_code_actionable(
+    coordinator: MagicMock, mock_device: MagicMock, values: dict[str, object]
+) -> None:
+    """A code with no confirmed name still reports its number."""
+    values["lemonbeat/0/last_error_code"] = 4711
+    sensor = GardenaLastErrorSensor(coordinator, mock_device)
+
+    assert sensor.native_value == "unknown"
+    assert sensor.extra_state_attributes["code"] == 4711
+    # Home Assistant rejects an enum state that is not among the options
+    assert sensor.native_value in sensor.options
+
+
+def test_last_error_is_unknown_until_reported(
+    coordinator: MagicMock, mock_device: MagicMock, values: dict[str, object]
+) -> None:
+    """Nothing is named before the device has reported a code."""
+    sensor = GardenaLastErrorSensor(coordinator, mock_device)
+
+    assert sensor.native_value is None
+    assert sensor.extra_state_attributes is None
+
+
+def test_no_error_is_its_own_state(
+    coordinator: MagicMock, mock_device: MagicMock, values: dict[str, object]
+) -> None:
+    """Zero means no error, which is not the same as an unnamed code."""
+    values["lemonbeat/0/last_error_code"] = 0
+    sensor = GardenaLastErrorSensor(coordinator, mock_device)
+
+    assert sensor.native_value == "none"
