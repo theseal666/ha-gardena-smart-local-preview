@@ -35,6 +35,7 @@ from .device_data import (
     read_int,
     read_int_list,
     read_local_timestamp,
+    read_reported_at,
     read_value,
 )
 from .entity import EntityFactories, GardenaEntity, async_setup_device_entities
@@ -454,9 +455,17 @@ class GardenaErrorCodeSensor(GardenaEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         codes = self._codes()
-        # Several codes can be active at once, and only the first one shows up
-        # as the state.
-        return None if codes is None else {"error_codes": codes}
+        if codes is None:
+            return None
+        device = self.coordinator.data.get(self._device.id)
+        return {
+            # Several codes can be active at once, and only the first one shows
+            # up as the state.
+            "error_codes": codes,
+            "reported_at": read_reported_at(device, "device", "error_code")
+            if device
+            else None,
+        }
 
 
 class GardenaLastErrorCodeSensor(GardenaEntity, SensorEntity):
@@ -533,9 +542,12 @@ class GardenaMowerErrorCodeSensor(GardenaEntity, SensorEntity):
         if not device:
             return None
         confirmable = read_value(device, "mower_app", "is_error_confirmable")
-        # Whether the error can be acknowledged remotely at all, or whether the
-        # mower has to be attended to in the garden.
-        return None if confirmable is None else {"confirmable": bool(confirmable)}
+        return {
+            # Whether the error can be acknowledged remotely at all, or whether
+            # the mower has to be attended to in the garden.
+            "confirmable": None if confirmable is None else bool(confirmable),
+            "reported_at": read_reported_at(device, "mower_app", "error"),
+        }
 
 
 class GardenaStatusMessageCodeSensor(GardenaEntity, SensorEntity):
@@ -587,4 +599,7 @@ class GardenaStatusMessageCodeSensor(GardenaEntity, SensorEntity):
             "level": self._LEVELS.get(level, level),
             "message_type": read_int(device, "lemonbeat_status_message", "type"),
             "data": data if isinstance(data, str) else None,
+            # A status message is a log line, so when it arrived is most of its
+            # meaning: an `error` level from last week is not a current fault.
+            "reported_at": read_reported_at(device, "lemonbeat_status_message", "code"),
         }

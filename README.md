@@ -191,6 +191,11 @@ icon_tap_action:
 Errors are reported as plain numbers, the way the devices report them — the
 local API carries no table to resolve them to text.
 
+Every one of these entities carries a `reported_at` attribute holding the
+gateway's own timestamp for the value. A device keeps reporting the last value
+it saw, so `reported_at` is what separates a current fault from one that
+cleared days ago.
+
 - **Error code** — the error(s) a device currently reports. `0` means no error.
   When more than one is active, the state shows the first and the
   `error_codes` attribute lists all of them.

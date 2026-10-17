@@ -71,6 +71,30 @@ def read_int_list(
     return None
 
 
+def read_reported_at(
+    device: Device,
+    object_name: str,
+    resource_name: str,
+    instance_id: str = "0",
+) -> datetime | None:
+    """Return when the gateway last reported a value for the resource.
+
+    Every reported value carries the gateway's own timestamp, which is what
+    tells a current fault from one that cleared days ago — the value alone
+    cannot, since the gateway keeps reporting the last one it saw.
+    """
+    field = device.get_field(
+        IpsoPath(
+            object_name=object_name,
+            object_instance_id=instance_id,
+            resource_name=resource_name,
+        )
+    )
+    if field is None or field.ts is None:
+        return None
+    return dt_util.utc_from_timestamp(field.ts)
+
+
 def read_local_timestamp(
     device: Device,
     object_name: str,
