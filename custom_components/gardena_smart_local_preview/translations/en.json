@@ -44,6 +44,12 @@
       },
       "resume_schedule": {
         "name": "Resume schedule"
+      },
+      "add_schedule": {
+        "name": "Add schedule"
+      },
+      "remove_schedule": {
+        "name": "Remove schedule {number}"
       }
     },
     "device_tracker": {
@@ -199,6 +205,27 @@
     "switch": {
       "position_reporting": {
         "name": "Position reporting"
+      },
+      "schedule_monday": {
+        "name": "Schedule {number} Monday"
+      },
+      "schedule_tuesday": {
+        "name": "Schedule {number} Tuesday"
+      },
+      "schedule_wednesday": {
+        "name": "Schedule {number} Wednesday"
+      },
+      "schedule_thursday": {
+        "name": "Schedule {number} Thursday"
+      },
+      "schedule_friday": {
+        "name": "Schedule {number} Friday"
+      },
+      "schedule_saturday": {
+        "name": "Schedule {number} Saturday"
+      },
+      "schedule_sunday": {
+        "name": "Schedule {number} Sunday"
       }
     },
     "time": {

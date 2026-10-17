@@ -413,9 +413,12 @@ class GardenaScheduleDuration(GardenaEntity, NumberEntity):
     # A day. The resource holds two bytes and the device would take more, but
     # a single entry that outlasts a day is a schedule for something else.
     _attr_native_max_value = 1440
-    _attr_native_step = 5
+    # The device holds minutes as a plain number, so every minute is a valid
+    # duration — a step would only rule out the one the user wanted.
+    _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTime.MINUTES
     _attr_mode = NumberMode.BOX
+    _attr_entity_category = EntityCategory.CONFIG
     _attr_translation_key = "schedule_duration"
     _attr_icon = "mdi:timer-edit-outline"
 

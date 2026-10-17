@@ -44,6 +44,12 @@
       },
       "resume_schedule": {
         "name": "Zeitplan fortsetzen"
+      },
+      "add_schedule": {
+        "name": "Zeitplan hinzufügen"
+      },
+      "remove_schedule": {
+        "name": "Zeitplan {number} entfernen"
       }
     },
     "device_tracker": {
@@ -199,6 +205,27 @@
     "switch": {
       "position_reporting": {
         "name": "Positionsübertragung"
+      },
+      "schedule_monday": {
+        "name": "Zeitplan {number} Montag"
+      },
+      "schedule_tuesday": {
+        "name": "Zeitplan {number} Dienstag"
+      },
+      "schedule_wednesday": {
+        "name": "Zeitplan {number} Mittwoch"
+      },
+      "schedule_thursday": {
+        "name": "Zeitplan {number} Donnerstag"
+      },
+      "schedule_friday": {
+        "name": "Zeitplan {number} Freitag"
+      },
+      "schedule_saturday": {
+        "name": "Zeitplan {number} Samstag"
+      },
+      "schedule_sunday": {
+        "name": "Zeitplan {number} Sonntag"
       }
     },
     "time": {

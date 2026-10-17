@@ -13,6 +13,7 @@ from functools import partial
 from gardena_smart_local_api.devices.device import Device
 from homeassistant.components.time import TimeEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -56,6 +57,7 @@ async def async_setup_entry(
 class GardenaScheduleStartTime(GardenaEntity, TimeEntity):
     """When one of the device's schedules starts."""
 
+    _attr_entity_category = EntityCategory.CONFIG
     _attr_translation_key = "schedule_start"
     _attr_icon = "mdi:clock-edit-outline"
 

@@ -14,6 +14,7 @@ from custom_components.gardena_smart_local_preview.schedules import (
     describe_schedule,
     remove_entry,
     replace_entry,
+    set_day,
 )
 
 # Read off a smart SILENO city/life (with LONA): one entry, Monday to
@@ -203,3 +204,45 @@ def test_editing_a_slot_that_does_not_exist_is_refused(index: int) -> None:
         replace_entry(CHANGED_SCHEDULE, index, duration_minutes=60)
     with pytest.raises(ValueError):
         remove_entry(CHANGED_SCHEDULE, index)
+
+
+def test_toggles_a_single_weekday() -> None:
+    """Turning a day on leaves the rest of the entry alone."""
+    with_sunday = set_day(CHANGED_SCHEDULE, 0, "sunday", True)
+
+    assert describe_schedule(with_sunday) == [
+        {
+            "days": [
+                "monday",
+                "tuesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday",
+            ],
+            "start": "10:30",
+            "duration_minutes": 180,
+        }
+    ]
+
+
+def test_turning_a_day_off_keeps_week_order() -> None:
+    """Days come back in week order however they were toggled."""
+    without_thursday = set_day(CHANGED_SCHEDULE, 0, "thursday", False)
+
+    assert describe_schedule(without_thursday)[0]["days"] == [
+        "monday",
+        "tuesday",
+        "friday",
+        "saturday",
+    ]
+
+
+def test_refuses_to_turn_off_the_last_day() -> None:
+    """A schedule with no days is one the device cannot express."""
+    one_day = build_schedule(
+        [{"days": ["monday"], "start": "10:00", "duration_minutes": 60}]
+    )
+
+    with pytest.raises(ValueError):
+        set_day(one_day, 0, "monday", False)

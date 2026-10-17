@@ -14,6 +14,7 @@ from gardena_smart_local_api.devices import PowerAdapter, Pump
 from gardena_smart_local_api.devices.device import Device
 from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_platform
@@ -22,7 +23,7 @@ from homeassistant.helpers.event import async_track_time_interval
 
 from .const import POSITION_REPORTING_REARM_SECONDS, POSITION_REPORTING_SECONDS
 from .coordinator import GardenaSmartLocalCoordinator
-from .device_data import read_int
+from .device_data import has_resource, read_int, read_value
 from .entity import (
     EntityFactories,
     GardenaEntity,
@@ -30,6 +31,7 @@ from .entity import (
     get_power_duration_minutes,
     get_pump_duration_minutes,
 )
+from .schedules import WEEKDAYS, describe_schedule, entry_count, set_day
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -77,6 +79,13 @@ async def async_setup_entry(
             entities["power"] = partial(GardenaPowerSwitch, coordinator, entry, device)
         elif isinstance(device, Pump):
             entities["pump"] = partial(GardenaPumpSwitch, coordinator, entry, device)
+        if has_resource(device, "lemonbeat", "schedule_config"):
+            raw = read_value(device, "lemonbeat", "schedule_config")
+            for index in range(entry_count(raw if isinstance(raw, bytes) else None)):
+                for day in WEEKDAYS:
+                    entities[f"schedule_{index}_{day}"] = partial(
+                        GardenaScheduleDaySwitch, coordinator, device, index, day
+                    )
         if hasattr(device, "build_start_position_reporting_obj"):
             entities["position_reporting"] = partial(
                 GardenaPositionReportingSwitch, coordinator, device
@@ -251,3 +260,75 @@ class GardenaPositionReportingSwitch(GardenaEntity, SwitchEntity):
                 self._device.id,
                 err,
             )
+
+
+class GardenaScheduleDaySwitch(GardenaEntity, SwitchEntity):
+    """Whether one of a schedule's weekdays is on.
+
+    A schedule is a set of weekdays, and Home Assistant has no entity for a
+    set — so each day is its own switch, which is also how it is read on a
+    dashboard: seven switches, the ones that are on are the days it mows.
+    """
+
+    _attr_device_class = SwitchDeviceClass.SWITCH
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: GardenaSmartLocalCoordinator,
+        device: Device,
+        index: int,
+        day: str,
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._index = index
+        self._day = day
+        self._attr_unique_id = f"{device.id}_schedule_{index}_{day}"
+        self._attr_translation_key = f"schedule_{day}"
+        self._attr_translation_placeholders = {"number": str(index + 1)}
+
+    def _schedule(self) -> bytes | None:
+        device = self.coordinator.data.get(self._device.id)
+        if not device:
+            return None
+        raw = read_value(device, "lemonbeat", "schedule_config")
+        return raw if isinstance(raw, bytes) else None
+
+    @property
+    def is_on(self) -> bool | None:
+        raw = self._schedule()
+        if raw is None:
+            return None
+        entries = describe_schedule(raw)
+        if self._index >= len(entries):
+            return None
+        return self._day in entries[self._index]["days"]
+
+    async def _async_set_day(self, enabled: bool) -> None:
+        raw = self._schedule()
+        if raw is None:
+            return
+        try:
+            config = set_day(raw, self._index, self._day, enabled)
+        except ValueError as err:
+            # Turning off the last day would leave a schedule that never runs,
+            # which the device has no way to express
+            raise HomeAssistantError(str(err)) from err
+        await self._send_confirmed_command(
+            self._device.build_set_resource_obj(
+                "lemonbeat", 0, "schedule_config", config
+            )
+        )
+        _LOGGER.info(
+            "Turned %s %s for schedule %s on device %s",
+            self._day,
+            "on" if enabled else "off",
+            self._index + 1,
+            self._device.id,
+        )
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self._async_set_day(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self._async_set_day(False)

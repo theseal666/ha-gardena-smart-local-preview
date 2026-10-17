@@ -44,6 +44,12 @@
       },
       "resume_schedule": {
         "name": "Reprendre le programme"
+      },
+      "add_schedule": {
+        "name": "Ajouter un programme"
+      },
+      "remove_schedule": {
+        "name": "Supprimer le programme {number}"
       }
     },
     "device_tracker": {
@@ -199,6 +205,27 @@
     "switch": {
       "position_reporting": {
         "name": "Transmission de la position"
+      },
+      "schedule_monday": {
+        "name": "Programme {number} Lundi"
+      },
+      "schedule_tuesday": {
+        "name": "Programme {number} Mardi"
+      },
+      "schedule_wednesday": {
+        "name": "Programme {number} Mercredi"
+      },
+      "schedule_thursday": {
+        "name": "Programme {number} Jeudi"
+      },
+      "schedule_friday": {
+        "name": "Programme {number} Vendredi"
+      },
+      "schedule_saturday": {
+        "name": "Programme {number} Samedi"
+      },
+      "schedule_sunday": {
+        "name": "Programme {number} Dimanche"
       }
     },
     "time": {

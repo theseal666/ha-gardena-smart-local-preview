@@ -13,11 +13,19 @@ from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import GardenaSmartLocalCoordinator
-from .device_data import has_command, has_resource
+from .device_data import has_command, has_resource, read_value
 from .entity import EntityFactories, GardenaEntity, async_setup_device_entities
+from .schedules import (
+    MAX_SCHEDULES,
+    WEEKDAYS,
+    add_entry,
+    entry_count,
+    remove_entry,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,6 +69,15 @@ async def async_setup_entry(
             entities["resume_schedule"] = partial(
                 GardenaResumeScheduleButton, coordinator, device
             )
+        if has_resource(device, "lemonbeat", "schedule_config"):
+            entities["add_schedule"] = partial(
+                GardenaAddScheduleButton, coordinator, device
+            )
+            raw = read_value(device, "lemonbeat", "schedule_config")
+            for index in range(entry_count(raw if isinstance(raw, bytes) else None)):
+                entities[f"remove_schedule_{index}"] = partial(
+                    GardenaRemoveScheduleButton, coordinator, device, index
+                )
         if has_command(device, "trigger_guide_wire_length_measurement"):
             entities["measure_guide_wire"] = partial(
                 GardenaMeasureGuideWireButton, coordinator, device
@@ -281,3 +298,87 @@ class GardenaResumeScheduleButton(GardenaEntity, ButtonEntity):
             )
         )
         _LOGGER.info("Resumed the schedule on device %s", self._device.id)
+
+
+# What a newly added schedule starts out as, before it is edited: every day,
+# mid-morning, two hours. Deliberately unremarkable — the entities next to it
+# are how it gets its real shape.
+NEW_SCHEDULE = {
+    "days": list(WEEKDAYS),
+    "start": "10:00",
+    "duration_minutes": 120,
+}
+
+
+class GardenaScheduleButton(GardenaEntity, ButtonEntity):
+    """Shared plumbing for the buttons that write a schedule."""
+
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def _schedule(self) -> bytes | None:
+        device = self.coordinator.data.get(self._device.id)
+        if not device:
+            return None
+        raw = read_value(device, "lemonbeat", "schedule_config")
+        return raw if isinstance(raw, bytes) else None
+
+    async def _async_write(self, config: bytes) -> None:
+        await self._send_confirmed_command(
+            self._device.build_set_resource_obj(
+                "lemonbeat", 0, "schedule_config", config
+            )
+        )
+
+
+class GardenaAddScheduleButton(GardenaScheduleButton):
+    """Append a schedule to edit with the entities beside it."""
+
+    _attr_translation_key = "add_schedule"
+    _attr_icon = "mdi:calendar-plus"
+
+    def __init__(
+        self, coordinator: GardenaSmartLocalCoordinator, device: Device
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._attr_unique_id = f"{device.id}_add_schedule"
+
+    async def async_press(self) -> None:
+        raw = self._schedule()
+        if entry_count(raw) >= MAX_SCHEDULES:
+            raise HomeAssistantError(
+                f"Device {self._device.id} already holds the {MAX_SCHEDULES} "
+                f"schedules it can keep"
+            )
+        await self._async_write(add_entry(raw, NEW_SCHEDULE))
+        _LOGGER.info("Added a schedule to device %s", self._device.id)
+
+
+class GardenaRemoveScheduleButton(GardenaScheduleButton):
+    """Drop one of the schedules the device holds."""
+
+    _attr_translation_key = "remove_schedule"
+    _attr_icon = "mdi:calendar-remove"
+
+    def __init__(
+        self,
+        coordinator: GardenaSmartLocalCoordinator,
+        device: Device,
+        index: int,
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._index = index
+        self._attr_unique_id = f"{device.id}_remove_schedule_{index}"
+        self._attr_translation_placeholders = {"number": str(index + 1)}
+
+    async def async_press(self) -> None:
+        raw = self._schedule()
+        if raw is None:
+            raise HomeAssistantError(f"Device {self._device.id} holds no schedule")
+        try:
+            config = remove_entry(raw, self._index)
+        except ValueError as err:
+            raise HomeAssistantError(str(err)) from err
+        await self._async_write(config)
+        _LOGGER.info(
+            "Removed schedule %s from device %s", self._index + 1, self._device.id
+        )

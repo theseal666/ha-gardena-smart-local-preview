@@ -242,12 +242,21 @@ shows which of the two you are looking at.
   writing it replaces what was there, so the action takes the whole list
   rather than a single entry, and refuses anything the device would not
   accept before it reaches the mower.
-- **Schedule N start** and **Schedule N duration** — one editable entity per
-  schedule the device holds, so a start time can be moved or a run shortened
-  by changing a value rather than by restating the whole schedule. The
-  entities appear and disappear with the schedules themselves.
-- **`add_schedule`** appends one entry, **`remove_schedule`** drops the entry
-  in a slot, counted from one the way the entities are named.
+- **Schedule N start**, **Schedule N duration** and a switch per weekday —
+  one set per schedule the device holds, under the device's configuration.
+  A start time is moved, a run shortened or a Wednesday dropped by changing
+  one value, not by restating the schedule. They appear and disappear with
+  the schedules themselves.
+- **Add schedule** appends one, every day from 10:00 for two hours, to be
+  given its real shape with the entities beside it. **Remove schedule N**
+  drops one. The `add_schedule` and `remove_schedule` actions do the same
+  from a script.
+
+> [!NOTE]
+> Duration is in whole minutes, because that is what the device stores. The
+> last day of a schedule cannot be switched off: a schedule with no days is
+> not something the device can express, so removing the schedule is the way
+> to stop it.
 - **Clear schedules** empties it, and **Resume schedule** releases a mower
   that was parked.
 

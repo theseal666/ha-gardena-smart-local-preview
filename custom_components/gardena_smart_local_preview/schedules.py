@@ -149,3 +149,20 @@ def remove_entry(raw: bytes, index: int) -> bytes:
     # An empty schedule is an empty blob, which is how a device with no
     # schedule reports itself
     return build_schedule(remaining, template=raw) if remaining else b""
+
+
+def set_day(raw: bytes, index: int, day: str, enabled: bool) -> bytes:
+    """Return the schedule with one weekday turned on or off for one entry."""
+    entries = describe_schedule(raw)
+    if not 0 <= index < len(entries):
+        raise ValueError(f"No schedule in slot {index}")
+    days = set(entries[index]["days"])
+    if enabled:
+        days.add(day)
+    else:
+        days.discard(day)
+    if not days:
+        raise ValueError("A schedule needs at least one weekday")
+    # Reported in week order rather than in the order they were toggled
+    ordered = [name for name in WEEKDAYS if name in days]
+    return replace_entry(raw, index, days=ordered)
