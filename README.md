@@ -186,6 +186,22 @@ icon_tap_action:
   action: toggle
 ```
 
+## Error Codes
+
+Errors are reported as plain numbers, the way the devices report them — the
+local API carries no table to resolve them to text.
+
+- **Error code** — the error(s) a device currently reports. `0` means no error.
+  When more than one is active, the state shows the first and the
+  `error_codes` attribute lists all of them.
+- **Last error code** / **Last error time** — a Gen1 mower's last error and
+  when it happened, kept after the error has cleared.
+- **Mower error code** — a Gen2 mower's own error code, with a `confirmable`
+  attribute saying whether it can be acknowledged remotely.
+- **Status message code** — the device's last log line, with its level, type
+  and payload bytes as attributes. Disabled by default: the stream is mostly
+  informational.
+
 ## Removal
 
 1. Go to **Settings → Devices & Services**
@@ -208,16 +224,19 @@ If installed via HACS, you can also remove the integration files there: open HAC
 | GARDENA smart Sensor                       | 19030-20                                   | Temperature, soil moisture, light, battery, RF link quality |
 | GARDENA smart Sensor II                    | 19040-20                                   | Temperature, soil moisture, battery, RF link quality        |
 | GARDENA smart Power Adapter                | 19095-20                                   | Switch                                                      |
-| GARDENA smart SILENO                       | 19060-20, 19060-60                         | Lawn mower                                                  |
-| GARDENA smart SILENO+                      | 19061-20, 19061-60, 19064-60, 19065-60     | Lawn mower                                                  |
-| GARDENA smart SILENO city                  | 19066-20, 19069-20                         | Lawn mower                                                  |
-| GARDENA smart SILENO life                  | 19113-20, 19114-20, 19115-20               | Lawn mower                                                  |
-| GARDENA smart SILENO city (with LONA)      | 19602-66, 19603-60, 19605-60               | Lawn mower                                                  |
-| GARDENA smart SILENO life (with LONA)      | 19701-60, 19702-60, 19703-66, 19704-60     | Lawn mower                                                  |
-| GARDENA smart SILENO pro                   | 19802-20, 19802-22                         | Lawn mower                                                  |
-| GARDENA smart SILENO max                   | 19901-22                                   | Lawn mower                                                  |
-| GARDENA smart SILENO free                  | 19921-22, 19922-22, 19923-22               | Lawn mower                                                  |
-| Flymo UltraLife                            | 970620501, 970620701, 970715101, 970715201 | Lawn mower                                                  |
+| GARDENA smart SILENO                       | 19060-20, 19060-60                         | Lawn mower, last error code / time                          |
+| GARDENA smart SILENO+                      | 19061-20, 19061-60, 19064-60, 19065-60     | Lawn mower, last error code / time                          |
+| GARDENA smart SILENO city                  | 19066-20, 19069-20                         | Lawn mower, last error code / time                          |
+| GARDENA smart SILENO life                  | 19113-20, 19114-20, 19115-20               | Lawn mower, last error code / time                          |
+| GARDENA smart SILENO city (with LONA)      | 19602-66, 19603-60, 19605-60               | Lawn mower, last error code / time                          |
+| GARDENA smart SILENO life (with LONA)      | 19701-60, 19702-60, 19703-66, 19704-60     | Lawn mower, last error code / time                          |
+| GARDENA smart SILENO pro                   | 19802-20, 19802-22                         | Lawn mower, mower error code                                |
+| GARDENA smart SILENO max                   | 19901-22                                   | Lawn mower, mower error code                                |
+| GARDENA smart SILENO free                  | 19921-22, 19922-22, 19923-22               | Lawn mower, mower error code                                |
+| Flymo UltraLife                            | 970620501, 970620701, 970715101, 970715201 | Lawn mower, last error code / time                          |
+
+> [!NOTE]
+> Every device additionally gets an **Error code** diagnostic sensor, plus a **Status message code** one that is disabled by default.
 
 > [!NOTE]
 > The temperature sensor integrated into Water Control devices is intended solely for frost detection, not for precise real-time temperature tracking.

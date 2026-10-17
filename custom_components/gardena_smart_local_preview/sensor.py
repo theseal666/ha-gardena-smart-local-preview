@@ -4,8 +4,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from functools import partial
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from gardena_smart_local_api.devices import Pump
 from gardena_smart_local_api.devices.device import Device, FirmwareUpdateState
@@ -29,6 +30,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import GardenaSmartLocalCoordinator
+from .device_data import (
+    has_resource,
+    read_int,
+    read_int_list,
+    read_local_timestamp,
+    read_value,
+)
 from .entity import EntityFactories, GardenaEntity, async_setup_device_entities
 
 # State comes only from the coordinator's push (no polling, no actions) —
@@ -83,6 +91,26 @@ async def async_setup_entry(
         if hasattr(device, "schedule_count"):
             entities["schedule_count"] = partial(
                 GardenaScheduleCountSensor, coordinator, device
+            )
+        if has_resource(device, "device", "error_code"):
+            entities["error_code"] = partial(
+                GardenaErrorCodeSensor, coordinator, device
+            )
+        if has_resource(device, "lemonbeat", "last_error_code"):
+            entities["last_error_code"] = partial(
+                GardenaLastErrorCodeSensor, coordinator, device
+            )
+        if has_resource(device, "lemonbeat", "timestamp_last_error_code"):
+            entities["last_error_time"] = partial(
+                GardenaLastErrorTimeSensor, coordinator, device
+            )
+        if has_resource(device, "mower_app", "error"):
+            entities["mower_error_code"] = partial(
+                GardenaMowerErrorCodeSensor, coordinator, device
+            )
+        if has_resource(device, "lemonbeat_status_message", "code"):
+            entities["status_message_code"] = partial(
+                GardenaStatusMessageCodeSensor, coordinator, device
             )
         entities["firmware_update_state"] = partial(
             GardenaFirmwareUpdateStateSensor, coordinator, device
@@ -384,3 +412,179 @@ class GardenaFirmwareUpdateStateSensor(GardenaEntity, SensorEntity):
             return None
         state = device.firmware_update_state
         return str(state) if state is not None else None
+
+
+# The devices report errors as bare numbers. The GARDENA app resolves them to
+# text from a table that is not part of the local API, so the codes stay
+# numeric here instead of being mapped to invented names.
+class GardenaErrorCodeSensor(GardenaEntity, SensorEntity):
+    """Error code(s) the device currently reports.
+
+    This is the standard device error resource every GARDENA smart device
+    carries, not the mower-specific one.
+    """
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_translation_key = "error_code"
+    _attr_icon = "mdi:alert-circle-outline"
+
+    def __init__(
+        self,
+        coordinator: GardenaSmartLocalCoordinator,
+        device: Device,
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._attr_unique_id = f"{device.id}_error_code"
+
+    def _codes(self) -> list[int] | None:
+        device = self.coordinator.data.get(self._device.id)
+        if not device:
+            return None
+        return read_int_list(device, "device", "error_code")
+
+    @property
+    def native_value(self) -> int | None:
+        codes = self._codes()
+        if codes is None:
+            return None
+        # The device keeps a 0 ("no error") entry in the list and reports real
+        # errors alongside it, so the first non-zero code is the current one.
+        return next((code for code in codes if code), 0)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        codes = self._codes()
+        # Several codes can be active at once, and only the first one shows up
+        # as the state.
+        return None if codes is None else {"error_codes": codes}
+
+
+class GardenaLastErrorCodeSensor(GardenaEntity, SensorEntity):
+    """Last error code a mower reported, kept after the error is cleared."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_translation_key = "last_error_code"
+    _attr_icon = "mdi:alert-circle-outline"
+
+    def __init__(
+        self,
+        coordinator: GardenaSmartLocalCoordinator,
+        device: Device,
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._attr_unique_id = f"{device.id}_last_error_code"
+
+    @property
+    def native_value(self) -> int | None:
+        device = self.coordinator.data.get(self._device.id)
+        if not device:
+            return None
+        return read_int(device, "lemonbeat", "last_error_code")
+
+
+class GardenaLastErrorTimeSensor(GardenaEntity, SensorEntity):
+    """When the mower reported its last error."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_translation_key = "last_error_time"
+
+    def __init__(
+        self,
+        coordinator: GardenaSmartLocalCoordinator,
+        device: Device,
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._attr_unique_id = f"{device.id}_last_error_time"
+
+    @property
+    def native_value(self) -> datetime | None:
+        device = self.coordinator.data.get(self._device.id)
+        if not device:
+            return None
+        return read_local_timestamp(device, "lemonbeat", "timestamp_last_error_code")
+
+
+class GardenaMowerErrorCodeSensor(GardenaEntity, SensorEntity):
+    """Error code of a Gen2 mower's mower application."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_translation_key = "mower_error_code"
+    _attr_icon = "mdi:alert-circle-outline"
+
+    def __init__(
+        self,
+        coordinator: GardenaSmartLocalCoordinator,
+        device: Device,
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._attr_unique_id = f"{device.id}_mower_error_code"
+
+    @property
+    def native_value(self) -> int | None:
+        device = self.coordinator.data.get(self._device.id)
+        if not device:
+            return None
+        return read_int(device, "mower_app", "error")
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        device = self.coordinator.data.get(self._device.id)
+        if not device:
+            return None
+        confirmable = read_value(device, "mower_app", "is_error_confirmable")
+        # Whether the error can be acknowledged remotely at all, or whether the
+        # mower has to be attended to in the garden.
+        return None if confirmable is None else {"confirmable": bool(confirmable)}
+
+
+class GardenaStatusMessageCodeSensor(GardenaEntity, SensorEntity):
+    """Code of the device's last status message.
+
+    The message is the device's own log line (level, type and four payload
+    bytes), which carries more detail about a problem than the error code
+    alone. Off by default because the stream is mostly informational.
+    """
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+    _attr_translation_key = "status_message_code"
+    _attr_icon = "mdi:message-alert-outline"
+
+    # Taken from the model definition's description of the level resource.
+    _LEVELS: ClassVar = {
+        0: "disabled",
+        1: "important",
+        2: "error",
+        3: "warning",
+        4: "info",
+        5: "debug",
+    }
+
+    def __init__(
+        self,
+        coordinator: GardenaSmartLocalCoordinator,
+        device: Device,
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._attr_unique_id = f"{device.id}_status_message_code"
+
+    @property
+    def native_value(self) -> int | None:
+        device = self.coordinator.data.get(self._device.id)
+        if not device:
+            return None
+        return read_int(device, "lemonbeat_status_message", "code")
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        device = self.coordinator.data.get(self._device.id)
+        if not device:
+            return None
+        level = read_int(device, "lemonbeat_status_message", "level")
+        data = read_value(device, "lemonbeat_status_message", "data")
+        return {
+            "level": self._LEVELS.get(level, level),
+            "message_type": read_int(device, "lemonbeat_status_message", "type"),
+            "data": data if isinstance(data, str) else None,
+        }

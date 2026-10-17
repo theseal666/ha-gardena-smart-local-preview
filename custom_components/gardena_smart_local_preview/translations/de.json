@@ -102,6 +102,21 @@
           "downloaded": "Heruntergeladen",
           "updating": "Wird aktualisiert"
         }
+      },
+      "error_code": {
+        "name": "Fehlercode"
+      },
+      "last_error_code": {
+        "name": "Letzter Fehlercode"
+      },
+      "last_error_time": {
+        "name": "Zeitpunkt des letzten Fehlers"
+      },
+      "mower_error_code": {
+        "name": "Fehlercode des Mähers"
+      },
+      "status_message_code": {
+        "name": "Code der Statusmeldung"
       }
     },
     "valve": {
