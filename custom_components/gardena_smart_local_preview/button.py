@@ -9,8 +9,6 @@ from functools import partial
 
 from gardena_smart_local_api.devices import Pump
 from gardena_smart_local_api.devices.device import Device
-from gardena_smart_local_api.messages import EgressMessageList
-from gardena_smart_local_api.resources import IpsoPath
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
@@ -18,7 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import GardenaSmartLocalCoordinator
-from .device_data import has_command, has_resource
+from .device_data import has_command
 from .entity import EntityFactories, GardenaEntity, async_setup_device_entities
 
 _LOGGER = logging.getLogger(__name__)
@@ -138,19 +136,6 @@ class GardenaClearSchedulesButton(GardenaEntity, ButtonEntity):
         _LOGGER.info("Cleared schedules for device %s", self._device.id)
 
 
-# The data-update command covers the device's own object but leaves the
-# standard error resource and the status message untouched — measured on a
-# Gen1 mower, where everything else was re-reported within a second and these
-# two kept a three-day-old timestamp. They are read explicitly alongside it.
-REFRESH_ALSO_READS = (
-    ("device", "error_code"),
-    ("lemonbeat_status_message", "code"),
-    ("lemonbeat_status_message", "level"),
-    ("lemonbeat_status_message", "type"),
-    ("lemonbeat_status_message", "data"),
-)
-
-
 class GardenaRefreshDataButton(GardenaEntity, ButtonEntity):
     """Ask a device to report its current state again.
 
@@ -159,6 +144,13 @@ class GardenaRefreshDataButton(GardenaEntity, ButtonEntity):
     was written against served a three-day-old status and error code, which
     every entity reading them then presents as current. This asks the device
     for a fresh report instead of waiting for it to volunteer one.
+
+    Measured scope, on a Gen1 mower: status, battery level, cutting time and
+    the last error code all carry a fresh timestamp a second after the press.
+    The standard error resource and the status message do not, and reading
+    them explicitly does not change that — the gateway serves the value as the
+    device last reported it, and the device reports those two only when they
+    change. Their age is what the entities' `reported_at` attribute is for.
     """
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
@@ -172,22 +164,9 @@ class GardenaRefreshDataButton(GardenaEntity, ButtonEntity):
         self._attr_unique_id = f"{device.id}_refresh_data"
 
     async def async_press(self) -> None:
-        requests = list(
+        await self._send_confirmed_command(
             self._device.build_command_obj(
                 self._device.get_command("trigger_data_update")
-            ).root
-        )
-        for object_name, resource_name in REFRESH_ALSO_READS:
-            if not has_resource(self._device, object_name, resource_name):
-                continue
-            requests.extend(
-                self._device.build_read_value_obj(
-                    IpsoPath(
-                        object_name=object_name,
-                        object_instance_id="0",
-                        resource_name=resource_name,
-                    )
-                ).root
             )
-        await self._send_confirmed_command(EgressMessageList(requests))
+        )
         _LOGGER.info("Requested a data update from device %s", self._device.id)
