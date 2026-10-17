@@ -29,6 +29,18 @@
       },
       "refresh_data": {
         "name": "Daten aktualisieren"
+      },
+      "measure_guide_wire": {
+        "name": "Suchkabel messen"
+      },
+      "wipe_map": {
+        "name": "Karte löschen"
+      },
+      "wipe_zones": {
+        "name": "Zonen löschen"
+      },
+      "wipe_map_and_zones": {
+        "name": "Karte und Zonen löschen"
       }
     },
     "device_tracker": {
@@ -141,6 +153,37 @@
           "none": "Kein Fehler",
           "no_loop_signal": "Kein Schleifensignal",
           "unknown": "Unbekannter Fehler"
+        }
+      },
+      "cutting_time": {
+        "name": "Mähdauer"
+      },
+      "running_time": {
+        "name": "Laufzeit"
+      },
+      "charging_cycles": {
+        "name": "Ladezyklen"
+      },
+      "collisions": {
+        "name": "Kollisionen"
+      },
+      "guide_wire_length": {
+        "name": "Länge des Suchkabels"
+      },
+      "next_start": {
+        "name": "Nächster Start"
+      },
+      "next_start_source": {
+        "name": "Auslöser des nächsten Starts",
+        "state": {
+          "no_source": "Nichts geplant",
+          "daily_limit": "Tageslimit",
+          "week_timer": "Wochentimer",
+          "countdown": "Countdown",
+          "charging": "Ladevorgang",
+          "auto_timer": "Auto-Timer",
+          "frost": "Frost",
+          "unknown": "Unbekannt"
         }
       }
     },

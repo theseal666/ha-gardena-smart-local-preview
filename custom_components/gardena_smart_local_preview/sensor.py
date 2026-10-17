@@ -21,8 +21,10 @@ from homeassistant.const import (
     LIGHT_LUX,
     PERCENTAGE,
     EntityCategory,
+    UnitOfLength,
     UnitOfPressure,
     UnitOfTemperature,
+    UnitOfTime,
     UnitOfVolume,
     UnitOfVolumeFlowRate,
 )
@@ -93,6 +95,21 @@ async def async_setup_entry(
         if hasattr(device, "schedule_count"):
             entities["schedule_count"] = partial(
                 GardenaScheduleCountSensor, coordinator, device
+            )
+        for key, factory in COUNTER_SENSORS.items():
+            if has_resource(device, "lemonbeat", key):
+                entities[key] = partial(factory, coordinator, device)
+        if has_resource(device, "lemonbeat", "guide_wire_length"):
+            entities["guide_wire_length"] = partial(
+                GardenaGuideWireLengthSensor, coordinator, device
+            )
+        if has_resource(device, "lemonbeat", "timestamp_next_start"):
+            entities["next_start"] = partial(
+                GardenaNextStartSensor, coordinator, device
+            )
+        if has_resource(device, "lemonbeat", "source_for_next_start"):
+            entities["next_start_source"] = partial(
+                GardenaNextStartSourceSensor, coordinator, device
             )
         if has_resource(device, "device", "error_code"):
             entities["error_code"] = partial(
@@ -653,3 +670,158 @@ class GardenaStatusMessageCodeSensor(GardenaEntity, SensorEntity):
             # meaning: an `error` level from last week is not a current fault.
             "reported_at": read_reported_at(device, "lemonbeat_status_message", "code"),
         }
+
+
+class _GardenaCounterSensor(GardenaEntity, SensorEntity):
+    """A counter the device keeps and only ever increases."""
+
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    _resource: ClassVar[str] = ""
+
+    def __init__(
+        self,
+        coordinator: GardenaSmartLocalCoordinator,
+        device: Device,
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._attr_unique_id = f"{device.id}_{self._resource}"
+        self._attr_translation_key = self._resource
+
+    @property
+    def native_value(self) -> int | None:
+        device = self.coordinator.data.get(self._device.id)
+        if not device:
+            return None
+        return read_int(device, "lemonbeat", self._resource)
+
+
+class GardenaCuttingTimeSensor(_GardenaCounterSensor):
+    """Hours the cutting disc has run."""
+
+    _resource = "cutting_time"
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = UnitOfTime.HOURS
+    _attr_icon = "mdi:saw-blade"
+
+
+class GardenaRunningTimeSensor(_GardenaCounterSensor):
+    """Hours the wheel motors have run."""
+
+    _resource = "running_time"
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = UnitOfTime.HOURS
+    _attr_icon = "mdi:timer-play-outline"
+
+
+class GardenaChargingCyclesSensor(_GardenaCounterSensor):
+    """Completed charging cycles, which is what wears the battery out."""
+
+    _resource = "charging_cycles"
+    _attr_icon = "mdi:battery-sync-outline"
+
+
+class GardenaCollisionsSensor(_GardenaCounterSensor):
+    """Collisions counted by the mower."""
+
+    _resource = "collisions"
+    _attr_icon = "mdi:car-brake-alert"
+
+
+class GardenaGuideWireLengthSensor(GardenaEntity, SensorEntity):
+    """Length of the guide wire, as last measured by the mower."""
+
+    _attr_device_class = SensorDeviceClass.DISTANCE
+    _attr_native_unit_of_measurement = UnitOfLength.METERS
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_translation_key = "guide_wire_length"
+    _attr_icon = "mdi:cable-data"
+
+    def __init__(
+        self,
+        coordinator: GardenaSmartLocalCoordinator,
+        device: Device,
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._attr_unique_id = f"{device.id}_guide_wire_length"
+
+    @property
+    def native_value(self) -> int | None:
+        device = self.coordinator.data.get(self._device.id)
+        if not device:
+            return None
+        length = read_int(device, "lemonbeat", "guide_wire_length")
+        # The model definition calls 0 uninitialised, not a wire of zero metres
+        return length or None
+
+
+class GardenaNextStartSensor(GardenaEntity, SensorEntity):
+    """When the mower is next due to start on its own."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_translation_key = "next_start"
+    _attr_icon = "mdi:clock-start"
+
+    def __init__(
+        self,
+        coordinator: GardenaSmartLocalCoordinator,
+        device: Device,
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._attr_unique_id = f"{device.id}_next_start"
+
+    @property
+    def native_value(self) -> datetime | None:
+        device = self.coordinator.data.get(self._device.id)
+        if not device:
+            return None
+        # Zero means "no start planned", which read_local_timestamp returns as
+        # None — the same thing a parked mower reports.
+        return read_local_timestamp(device, "lemonbeat", "timestamp_next_start")
+
+
+class GardenaNextStartSourceSensor(GardenaEntity, SensorEntity):
+    """What is going to start the mower next."""
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_translation_key = "next_start_source"
+    _attr_icon = "mdi:help-rhombus-outline"
+
+    # Taken from the model definition's description of the resource
+    _SOURCES: ClassVar = {
+        0: "no_source",
+        1: "daily_limit",
+        2: "week_timer",
+        3: "countdown",
+        4: "charging",
+        5: "auto_timer",
+        6: "frost",
+    }
+    _attr_options: ClassVar = [*_SOURCES.values(), "unknown"]
+
+    def __init__(
+        self,
+        coordinator: GardenaSmartLocalCoordinator,
+        device: Device,
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._attr_unique_id = f"{device.id}_next_start_source"
+
+    @property
+    def native_value(self) -> str | None:
+        device = self.coordinator.data.get(self._device.id)
+        if not device:
+            return None
+        source = read_int(device, "lemonbeat", "source_for_next_start")
+        if source is None:
+            return None
+        return self._SOURCES.get(source, "unknown")
+
+
+COUNTER_SENSORS: dict[str, type[_GardenaCounterSensor]] = {
+    "cutting_time": GardenaCuttingTimeSensor,
+    "running_time": GardenaRunningTimeSensor,
+    "charging_cycles": GardenaChargingCyclesSensor,
+    "collisions": GardenaCollisionsSensor,
+}

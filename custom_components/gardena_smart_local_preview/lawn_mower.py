@@ -18,10 +18,12 @@ from homeassistant.components.lawn_mower import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import GardenaSmartLocalCoordinator
+from .device_data import has_resource
 from .entity import (
     EntityFactories,
     GardenaEntity,
@@ -49,7 +51,14 @@ async def async_setup_entry(
         {
             # Whole hours, matching the Default Mowing Duration number entity
             # and the range the GARDENA app offers for a manual start.
-            vol.Optional("duration"): vol.All(vol.Coerce(int), vol.Range(min=1, max=6))
+            vol.Optional("duration"): vol.All(vol.Coerce(int), vol.Range(min=1, max=6)),
+            # Metres along the boundary wire to drive before starting to mow,
+            # so a manual run can be sent to a far corner. Only mowers that
+            # navigate report the resource this travels in; the upper bound is
+            # the longest wire the model definitions describe.
+            vol.Optional("distance"): vol.All(
+                vol.Coerce(int), vol.Range(min=0, max=1000)
+            ),
         },
         "async_start_mowing_for",
     )
@@ -112,16 +121,30 @@ class GardenaMower(GardenaEntity, LawnMowerEntity):
     async def async_start_mowing(self) -> None:
         await self.async_start_mowing_for()
 
-    async def async_start_mowing_for(self, duration: int | None = None) -> None:
+    async def async_start_mowing_for(
+        self, duration: int | None = None, distance: int | None = None
+    ) -> None:
         hours = (
             duration
             if duration is not None
             else get_mower_duration_hours(self._entry, self._device.id)
         )
-        await self._send_confirmed_command(
-            self._device.build_start_mowing_obj(hours * 3600)
+        if distance:
+            if not has_resource(self._device, "lemonbeat", "mower_timer_with_distance"):
+                raise HomeAssistantError(
+                    f"Device {self._device.id} cannot start a given distance from "
+                    f"its charging station"
+                )
+            request = self._device.build_start_mowing_obj(hours * 3600, distance)
+        else:
+            request = self._device.build_start_mowing_obj(hours * 3600)
+        await self._send_confirmed_command(request)
+        _LOGGER.info(
+            "Start mowing with %s for %s hours, %s m from the charging station",
+            self._device.id,
+            hours,
+            distance or 0,
         )
-        _LOGGER.info("Start mowing with %s for %s hours", self._device.id, hours)
 
     async def async_dock(self) -> None:
         await self._send_confirmed_command(self._device.build_stop_mowing_obj())

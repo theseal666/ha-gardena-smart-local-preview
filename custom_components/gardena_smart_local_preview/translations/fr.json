@@ -29,6 +29,18 @@
       },
       "refresh_data": {
         "name": "Actualiser les données"
+      },
+      "measure_guide_wire": {
+        "name": "Mesurer le câble guide"
+      },
+      "wipe_map": {
+        "name": "Effacer la carte"
+      },
+      "wipe_zones": {
+        "name": "Effacer les zones"
+      },
+      "wipe_map_and_zones": {
+        "name": "Effacer la carte et les zones"
       }
     },
     "device_tracker": {
@@ -141,6 +153,37 @@
           "none": "Aucune erreur",
           "no_loop_signal": "Pas de signal du câble périphérique",
           "unknown": "Erreur inconnue"
+        }
+      },
+      "cutting_time": {
+        "name": "Temps de coupe"
+      },
+      "running_time": {
+        "name": "Temps de fonctionnement"
+      },
+      "charging_cycles": {
+        "name": "Cycles de charge"
+      },
+      "collisions": {
+        "name": "Collisions"
+      },
+      "guide_wire_length": {
+        "name": "Longueur du câble guide"
+      },
+      "next_start": {
+        "name": "Prochain démarrage"
+      },
+      "next_start_source": {
+        "name": "Origine du prochain démarrage",
+        "state": {
+          "no_source": "Rien de prévu",
+          "daily_limit": "Limite journalière",
+          "week_timer": "Programmateur hebdomadaire",
+          "countdown": "Compte à rebours",
+          "charging": "Charge",
+          "auto_timer": "Programmateur automatique",
+          "frost": "Gel",
+          "unknown": "Inconnu"
         }
       }
     },
