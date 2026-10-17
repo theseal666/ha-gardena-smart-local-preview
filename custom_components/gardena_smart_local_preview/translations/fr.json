@@ -41,6 +41,9 @@
       },
       "wipe_map_and_zones": {
         "name": "Effacer la carte et les zones"
+      },
+      "resume_schedule": {
+        "name": "Reprendre le programme"
       }
     },
     "device_tracker": {
@@ -185,6 +188,9 @@
           "frost": "Gel",
           "unknown": "Inconnu"
         }
+      },
+      "schedule": {
+        "name": "Programme"
       }
     },
     "switch": {

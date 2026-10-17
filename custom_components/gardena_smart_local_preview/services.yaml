@@ -73,3 +73,18 @@ start_mowing:
           max: 1000
           unit_of_measurement: m
           mode: box
+
+set_schedule:
+  target:
+    entity:
+      integration: gardena_smart_local_preview
+      domain: lawn_mower
+  fields:
+    schedules:
+      required: true
+      example: |
+        - days: [monday, tuesday, wednesday, thursday, friday, saturday]
+          start: "09:30"
+          duration_minutes: 340
+      selector:
+        object:

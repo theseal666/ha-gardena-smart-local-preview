@@ -41,6 +41,9 @@
       },
       "wipe_map_and_zones": {
         "name": "Karte und Zonen löschen"
+      },
+      "resume_schedule": {
+        "name": "Zeitplan fortsetzen"
       }
     },
     "device_tracker": {
@@ -185,6 +188,9 @@
           "frost": "Frost",
           "unknown": "Unbekannt"
         }
+      },
+      "schedule": {
+        "name": "Zeitplan"
       }
     },
     "switch": {

@@ -42,6 +42,7 @@ from .device_data import (
 )
 from .entity import EntityFactories, GardenaEntity, async_setup_device_entities
 from .error_codes import error_name, error_names
+from .schedules import describe_schedule
 
 # State comes only from the coordinator's push (no polling, no actions) —
 # there is nothing here for PARALLEL_UPDATES to throttle
@@ -96,6 +97,8 @@ async def async_setup_entry(
             entities["schedule_count"] = partial(
                 GardenaScheduleCountSensor, coordinator, device
             )
+        if has_resource(device, "lemonbeat", "schedule_config"):
+            entities["schedule"] = partial(GardenaScheduleSensor, coordinator, device)
         for key, factory in COUNTER_SENSORS.items():
             if has_resource(device, "lemonbeat", key):
                 entities[key] = partial(factory, coordinator, device)
@@ -825,3 +828,43 @@ COUNTER_SENSORS: dict[str, type[_GardenaCounterSensor]] = {
     "charging_cycles": GardenaChargingCyclesSensor,
     "collisions": GardenaCollisionsSensor,
 }
+
+
+class GardenaScheduleSensor(GardenaEntity, SensorEntity):
+    """The schedule the device is running, as the device holds it.
+
+    The state is how many entries there are; the entries themselves are
+    attributes, because a schedule is a list and a state is a string. Set a
+    new one with the `set_schedule` action, or empty it with the clear
+    schedules button.
+    """
+
+    _attr_translation_key = "schedule"
+    _attr_icon = "mdi:calendar-clock"
+
+    def __init__(
+        self,
+        coordinator: GardenaSmartLocalCoordinator,
+        device: Device,
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._attr_unique_id = f"{device.id}_schedule"
+
+    def _entries(self) -> list[dict[str, Any]] | None:
+        device = self.coordinator.data.get(self._device.id)
+        if not device:
+            return None
+        raw = read_value(device, "lemonbeat", "schedule_config")
+        if not isinstance(raw, bytes):
+            return None
+        return describe_schedule(raw)
+
+    @property
+    def native_value(self) -> int | None:
+        entries = self._entries()
+        return None if entries is None else len(entries)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        entries = self._entries()
+        return None if entries is None else {"schedules": entries}
