@@ -102,6 +102,21 @@
           "downloaded": "Téléchargé",
           "updating": "Mise à jour"
         }
+      },
+      "error_code": {
+        "name": "Code d'erreur"
+      },
+      "last_error_code": {
+        "name": "Dernier code d'erreur"
+      },
+      "last_error_time": {
+        "name": "Heure de la dernière erreur"
+      },
+      "mower_error_code": {
+        "name": "Code d'erreur du robot"
+      },
+      "status_message_code": {
+        "name": "Code du message d'état"
       }
     },
     "valve": {

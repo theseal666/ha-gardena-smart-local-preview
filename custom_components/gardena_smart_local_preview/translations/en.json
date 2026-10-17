@@ -102,6 +102,21 @@
           "downloaded": "Downloaded",
           "updating": "Updating"
         }
+      },
+      "error_code": {
+        "name": "Error code"
+      },
+      "last_error_code": {
+        "name": "Last error code"
+      },
+      "last_error_time": {
+        "name": "Last error time"
+      },
+      "mower_error_code": {
+        "name": "Mower error code"
+      },
+      "status_message_code": {
+        "name": "Status message code"
       }
     },
     "valve": {
