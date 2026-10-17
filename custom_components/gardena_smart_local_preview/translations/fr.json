@@ -34,13 +34,13 @@
         "name": "Mesurer le câble guide"
       },
       "wipe_map": {
-        "name": "Effacer la carte"
+        "name": "Effacer la carte apprise"
       },
       "wipe_zones": {
-        "name": "Effacer les zones"
+        "name": "Effacer les zones apprises"
       },
       "wipe_map_and_zones": {
-        "name": "Effacer la carte et les zones"
+        "name": "Effacer la carte et les zones apprises"
       },
       "add_schedule": {
         "name": "Ajouter un programme"

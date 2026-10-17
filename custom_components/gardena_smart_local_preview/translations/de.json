@@ -34,13 +34,13 @@
         "name": "Suchkabel messen"
       },
       "wipe_map": {
-        "name": "Karte löschen"
+        "name": "Gelernte Karte löschen"
       },
       "wipe_zones": {
-        "name": "Zonen löschen"
+        "name": "Gelernte Zonen löschen"
       },
       "wipe_map_and_zones": {
-        "name": "Karte und Zonen löschen"
+        "name": "Gelernte Karte und Zonen löschen"
       },
       "add_schedule": {
         "name": "Zeitplan hinzufügen"

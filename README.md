@@ -316,9 +316,13 @@ takes an optional `distance` in metres, which the mower drives along the
 boundary wire before it starts cutting.
 
 > [!WARNING]
-> **Wipe map**, **Wipe zones** and **Wipe map and zones** throw away what the
-> mower has learnt about a garden, and it has to learn it again. They are off
-> by default, like clearing the schedules.
+> **Wipe learnt map**, **Wipe learnt zones** and **Wipe learnt map and
+> zones** throw away what the mower has learnt about a garden, and it has to
+> drive the garden again to learn it back. They are off by default, like
+> clearing the schedules, and each carries what it erases as a
+> `what_this_erases` attribute — a button whose name is the whole of its
+> documentation is one people press to find out what it does, and these are
+> the ones where finding out costs something.
 
 ## Gateway Gone, Device Silent, Mower Stuck
 

@@ -17,7 +17,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import GardenaSmartLocalCoordinator
-from .device_data import has_command, read_value
+from .device_data import has_command, has_resource, read_value
 from .entity import EntityFactories, GardenaEntity, async_setup_device_entities
 from .schedules import (
     MAX_SCHEDULES,
@@ -63,14 +63,23 @@ async def async_setup_entry(
             entities["refresh_data"] = partial(
                 GardenaRefreshDataButton, coordinator, device
             )
+        if has_resource(device, "lemonbeat", "schedule_config"):
+            entities["add_schedule"] = partial(
+                GardenaAddScheduleButton, coordinator, device
+            )
+            raw = read_value(device, "lemonbeat", "schedule_config")
+            for index in range(entry_count(raw if isinstance(raw, bytes) else None)):
+                entities[f"remove_schedule_{index}"] = partial(
+                    GardenaRemoveScheduleButton, coordinator, device, index
+                )
         if has_command(device, "trigger_guide_wire_length_measurement"):
             entities["measure_guide_wire"] = partial(
                 GardenaMeasureGuideWireButton, coordinator, device
             )
-        for command, name in WIPE_BUTTONS.items():
+        for command, explanation in WIPE_BUTTONS.items():
             if has_command(device, command):
                 entities[command] = partial(
-                    GardenaWipeButton, coordinator, device, command, name
+                    GardenaWipeButton, coordinator, device, command, explanation
                 )
         return entities
 
@@ -190,12 +199,24 @@ class GardenaRefreshDataButton(GardenaEntity, ButtonEntity):
 
 
 # What the mower has learnt about a garden, and the commands that throw it
-# away. All off by default: they are not undoable, and a mower that has lost
-# its map has to learn the garden again.
+# away, each with what pressing it costs. All off by default: none of them
+# can be undone, and a mower that has lost what it learnt has to drive the
+# garden again to learn it back.
 WIPE_BUTTONS = {
-    "wipe_map": "wipe_map",
-    "wipe_zones": "wipe_zones",
-    "wipe_map_and_zones": "wipe_map_and_zones",
+    "wipe_map": (
+        "Erases the map the mower has built of this garden. It has to learn "
+        "the garden again by mowing it, and until it has, it navigates "
+        "without one. Cannot be undone."
+    ),
+    "wipe_zones": (
+        "Erases the zones set up for this garden, including their starting "
+        "points. The map itself is kept. Cannot be undone."
+    ),
+    "wipe_map_and_zones": (
+        "Erases both the map and the zones, leaving the mower as it was "
+        "before it learnt this garden — which is what a mower that has "
+        "changed gardens needs. Cannot be undone."
+    ),
 }
 
 
@@ -226,7 +247,12 @@ class GardenaMeasureGuideWireButton(GardenaEntity, ButtonEntity):
 
 
 class GardenaWipeButton(GardenaEntity, ButtonEntity):
-    """Throw away a map or the zones the mower has learnt."""
+    """Throw away a map or the zones the mower has learnt.
+
+    Carries what it erases as an attribute. A button whose name is the whole
+    of its documentation is a button someone presses to find out what it
+    does, and these are the ones where finding out costs something.
+    """
 
     _attr_entity_category = EntityCategory.CONFIG
     _attr_entity_registry_enabled_default = False
@@ -237,12 +263,17 @@ class GardenaWipeButton(GardenaEntity, ButtonEntity):
         coordinator: GardenaSmartLocalCoordinator,
         device: Device,
         command: str,
-        translation_key: str,
+        explanation: str,
     ) -> None:
         super().__init__(coordinator, device)
         self._command = command
+        self._explanation = explanation
         self._attr_unique_id = f"{device.id}_{command}"
-        self._attr_translation_key = translation_key
+        self._attr_translation_key = command
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        return {"what_this_erases": self._explanation}
 
     async def async_press(self) -> None:
         await self._send_confirmed_command(

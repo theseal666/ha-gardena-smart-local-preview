@@ -34,13 +34,13 @@
         "name": "Measure guide wire"
       },
       "wipe_map": {
-        "name": "Wipe map"
+        "name": "Wipe learnt map"
       },
       "wipe_zones": {
-        "name": "Wipe zones"
+        "name": "Wipe learnt zones"
       },
       "wipe_map_and_zones": {
-        "name": "Wipe map and zones"
+        "name": "Wipe learnt map and zones"
       },
       "add_schedule": {
         "name": "Add schedule"
