@@ -31,7 +31,14 @@ from .entity import (
     get_power_duration_minutes,
     get_pump_duration_minutes,
 )
-from .schedules import WEEKDAYS, describe_schedule, entry_count, set_day
+from .schedules import (
+    NOT_PAUSED,
+    WEEKDAYS,
+    describe_schedule,
+    entry_count,
+    is_paused,
+    set_day,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -79,6 +86,12 @@ async def async_setup_entry(
             entities["power"] = partial(GardenaPowerSwitch, coordinator, entry, device)
         elif isinstance(device, Pump):
             entities["pump"] = partial(GardenaPumpSwitch, coordinator, entry, device)
+        if hasattr(device, "build_stop_mowing_obj") and has_resource(
+            device, "lemonbeat", "action_paused_until_1"
+        ):
+            entities["run_schedule"] = partial(
+                GardenaRunScheduleSwitch, coordinator, device
+            )
         if has_resource(device, "lemonbeat", "schedule_config"):
             raw = read_value(device, "lemonbeat", "schedule_config")
             for index in range(entry_count(raw if isinstance(raw, bytes) else None)):
@@ -332,3 +345,47 @@ class GardenaScheduleDaySwitch(GardenaEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self._async_set_day(False)
+
+
+class GardenaRunScheduleSwitch(GardenaEntity, SwitchEntity):
+    """Whether the mower's schedule is allowed to run.
+
+    Parking a mower is a state, not an errand: the device holds a "paused
+    until" date, and docking writes one far in the future. So this is a
+    switch — off parks the mower until further notice, on hands the schedule
+    back — and it reads the device rather than remembering what was pressed,
+    so parking from the mower or the app shows up here too.
+    """
+
+    _attr_device_class = SwitchDeviceClass.SWITCH
+    _attr_translation_key = "run_schedule"
+    _attr_icon = "mdi:calendar-sync"
+
+    def __init__(
+        self,
+        coordinator: GardenaSmartLocalCoordinator,
+        device: Device,
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._attr_unique_id = f"{device.id}_run_schedule"
+
+    @property
+    def is_on(self) -> bool | None:
+        device = self.coordinator.data.get(self._device.id)
+        if not device:
+            return None
+        paused = is_paused(read_value(device, "lemonbeat", "action_paused_until_1"))
+        return None if paused is None else not paused
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self._send_confirmed_command(
+            self._device.build_set_resource_obj(
+                "lemonbeat", 0, "action_paused_until_1", NOT_PAUSED
+            )
+        )
+        _LOGGER.info("Let the schedule run again on device %s", self._device.id)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        # The dependency's own park: the same write docking does
+        await self._send_confirmed_command(self._device.build_stop_mowing_obj())
+        _LOGGER.info("Parked device %s until further notice", self._device.id)

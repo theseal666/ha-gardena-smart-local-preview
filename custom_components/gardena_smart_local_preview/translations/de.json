@@ -42,9 +42,6 @@
       "wipe_map_and_zones": {
         "name": "Karte und Zonen löschen"
       },
-      "resume_schedule": {
-        "name": "Zeitplan fortsetzen"
-      },
       "add_schedule": {
         "name": "Zeitplan hinzufügen"
       },
@@ -226,6 +223,9 @@
       },
       "schedule_sunday": {
         "name": "Zeitplan {number} Sonntag"
+      },
+      "run_schedule": {
+        "name": "Zeitplan aktiv"
       }
     },
     "time": {

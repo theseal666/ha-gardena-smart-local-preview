@@ -42,9 +42,6 @@
       "wipe_map_and_zones": {
         "name": "Effacer la carte et les zones"
       },
-      "resume_schedule": {
-        "name": "Reprendre le programme"
-      },
       "add_schedule": {
         "name": "Ajouter un programme"
       },
@@ -226,6 +223,9 @@
       },
       "schedule_sunday": {
         "name": "Programme {number} Dimanche"
+      },
+      "run_schedule": {
+        "name": "Programme actif"
       }
     },
     "time": {

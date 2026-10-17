@@ -17,7 +17,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import GardenaSmartLocalCoordinator
-from .device_data import has_command, has_resource, read_value
+from .device_data import has_command, read_value
 from .entity import EntityFactories, GardenaEntity, async_setup_device_entities
 from .schedules import (
     MAX_SCHEDULES,
@@ -63,21 +63,6 @@ async def async_setup_entry(
             entities["refresh_data"] = partial(
                 GardenaRefreshDataButton, coordinator, device
             )
-        if hasattr(device, "build_stop_mowing_obj") and has_resource(
-            device, "lemonbeat", "action_paused_until_1"
-        ):
-            entities["resume_schedule"] = partial(
-                GardenaResumeScheduleButton, coordinator, device
-            )
-        if has_resource(device, "lemonbeat", "schedule_config"):
-            entities["add_schedule"] = partial(
-                GardenaAddScheduleButton, coordinator, device
-            )
-            raw = read_value(device, "lemonbeat", "schedule_config")
-            for index in range(entry_count(raw if isinstance(raw, bytes) else None)):
-                entities[f"remove_schedule_{index}"] = partial(
-                    GardenaRemoveScheduleButton, coordinator, device, index
-                )
         if has_command(device, "trigger_guide_wire_length_measurement"):
             entities["measure_guide_wire"] = partial(
                 GardenaMeasureGuideWireButton, coordinator, device
@@ -264,40 +249,6 @@ class GardenaWipeButton(GardenaEntity, ButtonEntity):
             self._device.build_command_obj(self._device.get_command(self._command))
         )
         _LOGGER.info("Sent %s to device %s", self._command, self._device.id)
-
-
-# What a mower reports for "not paused": the device's own idle value, seen on
-# a mower that had never been parked. Parking writes a date far in the future
-# instead, so the way back is to write this one.
-NOT_PAUSED = (1970).to_bytes(2, "little") + bytes([1, 1, 0, 0])
-
-
-class GardenaResumeScheduleButton(GardenaEntity, ButtonEntity):
-    """Let the schedule run again after the mower was parked.
-
-    Docking a mower parks it until further notice, by writing a date far in
-    the future to the resource that holds "paused until". Nothing wrote that
-    resource back, so a parked mower could only be released by starting a
-    manual run, or by reaching for the official app — which is the one thing
-    this integration exists to avoid.
-    """
-
-    _attr_translation_key = "resume_schedule"
-    _attr_icon = "mdi:calendar-check"
-
-    def __init__(
-        self, coordinator: GardenaSmartLocalCoordinator, device: Device
-    ) -> None:
-        super().__init__(coordinator, device)
-        self._attr_unique_id = f"{device.id}_resume_schedule"
-
-    async def async_press(self) -> None:
-        await self._send_confirmed_command(
-            self._device.build_set_resource_obj(
-                "lemonbeat", 0, "action_paused_until_1", NOT_PAUSED
-            )
-        )
-        _LOGGER.info("Resumed the schedule on device %s", self._device.id)
 
 
 # What a newly added schedule starts out as, before it is edited: every day,

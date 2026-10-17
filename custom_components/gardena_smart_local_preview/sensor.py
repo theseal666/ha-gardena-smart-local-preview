@@ -762,6 +762,10 @@ class GardenaNextStartSensor(GardenaEntity, SensorEntity):
     """When the mower is next due to start on its own."""
 
     _attr_device_class = SensorDeviceClass.TIMESTAMP
+    # Sits with the schedule block rather than among the sensors: when the
+    # mower will next set off is the schedule's output, and reads as one
+    # thing with the entries that produce it.
+    _attr_entity_category = EntityCategory.CONFIG
     _attr_translation_key = "next_start"
     _attr_icon = "mdi:clock-start"
 
@@ -787,7 +791,7 @@ class GardenaNextStartSourceSensor(GardenaEntity, SensorEntity):
     """What is going to start the mower next."""
 
     _attr_device_class = SensorDeviceClass.ENUM
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_category = EntityCategory.CONFIG
     _attr_translation_key = "next_start_source"
     _attr_icon = "mdi:help-rhombus-outline"
 

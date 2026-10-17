@@ -257,8 +257,13 @@ shows which of the two you are looking at.
 > last day of a schedule cannot be switched off: a schedule with no days is
 > not something the device can express, so removing the schedule is the way
 > to stop it.
-- **Clear schedules** empties it, and **Resume schedule** releases a mower
-  that was parked.
+- **Run schedule** — a switch over the pause the device holds. Off parks the
+  mower until further notice, the same park docking performs; on hands the
+  schedule back. It reads the device, so parking from the mower or the app
+  shows up here too.
+- **Next start** sits with the schedule rather than among the sensors: when
+  the mower will next set off is what the entries above it add up to.
+- **Clear schedules** empties the schedule.
 
 Every one of these rebuilds the whole blob from what the device currently
 holds, so an edit never carries a stale copy of the other entries back to the
@@ -284,9 +289,9 @@ data:
 
 > [!NOTE]
 > Docking a mower parks it until further notice — the integration writes a
-> date far in the future to the device's "paused until" resource. **Resume
-> schedule** writes back the idle value a mower that has never been parked
-> reports, so the week timer runs again without starting a mow.
+> date far in the future to the device's "paused until" resource. Turning
+> **Run schedule** back on writes the idle value a mower that has never been
+> parked reports, so the week timer runs again without starting a mow.
 
 ## What a Mower Reports About Itself
 

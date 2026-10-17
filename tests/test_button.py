@@ -11,7 +11,6 @@ from unittest.mock import MagicMock
 from custom_components.gardena_smart_local_preview.button import (
     GardenaMeasureGuideWireButton,
     GardenaRefreshDataButton,
-    GardenaResumeScheduleButton,
     GardenaWipeButton,
 )
 
@@ -67,17 +66,3 @@ def test_wipe_buttons_are_off_by_default(
     button = GardenaWipeButton(coordinator, mock_device, "wipe_map", "wipe_map")
 
     assert button.entity_registry_enabled_default is False
-
-
-async def test_resume_schedule_writes_the_idle_pause_value(
-    coordinator: MagicMock, mock_device: MagicMock
-) -> None:
-    """Resuming writes back what a mower that was never parked reports."""
-    button = GardenaResumeScheduleButton(coordinator, mock_device)
-
-    await button.async_press()
-
-    args = mock_device.build_set_resource_obj.call_args.args
-    assert args[:3] == ("lemonbeat", 0, "action_paused_until_1")
-    year = int.from_bytes(args[3][0:2], "little")
-    assert (year, *args[3][2:]) == (1970, 1, 1, 0, 0)

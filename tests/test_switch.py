@@ -22,6 +22,7 @@ from custom_components.gardena_smart_local_preview.const import (
 )
 from custom_components.gardena_smart_local_preview.switch import (
     GardenaPositionReportingSwitch,
+    GardenaRunScheduleSwitch,
 )
 
 
@@ -152,3 +153,70 @@ async def test_a_rejected_turn_on_is_reported(
 
     with pytest.raises(HomeAssistantError):
         await position_switch.async_turn_on()
+
+
+@pytest.fixture
+def run_schedule(
+    coordinator: MagicMock, mock_device: MagicMock, values: dict[str, object]
+) -> GardenaRunScheduleSwitch:
+    """A switch over the device's "paused until" resource."""
+    return GardenaRunScheduleSwitch(coordinator, mock_device)
+
+
+def test_run_schedule_reads_the_devices_pause(
+    run_schedule: GardenaRunScheduleSwitch, values: dict[str, object]
+) -> None:
+    """A pause that has not run out is a parked mower, whoever parked it."""
+    assert run_schedule.is_on is None
+
+    # What a mower reports when nothing is paused
+    values["lemonbeat/0/action_paused_until_1"] = (1970).to_bytes(2, "little") + bytes(
+        [1, 1, 0, 0]
+    )
+    assert run_schedule.is_on is True
+
+    # What docking writes
+    values["lemonbeat/0/action_paused_until_1"] = (2042).to_bytes(2, "little") + bytes(
+        [12, 31, 22, 0]
+    )
+    assert run_schedule.is_on is False
+
+
+async def test_turning_the_schedule_on_writes_the_idle_value(
+    run_schedule: GardenaRunScheduleSwitch, mock_device: MagicMock
+) -> None:
+    """Resuming writes back what a mower that was never parked reports."""
+    await run_schedule.async_turn_on()
+
+    args = mock_device.build_set_resource_obj.call_args.args
+    assert args[:3] == ("lemonbeat", 0, "action_paused_until_1")
+    assert (int.from_bytes(args[3][0:2], "little"), *args[3][2:]) == (1970, 1, 1, 0, 0)
+
+
+async def test_turning_the_schedule_off_parks_the_mower(
+    run_schedule: GardenaRunScheduleSwitch, mock_device: MagicMock
+) -> None:
+    """Off is the same park docking performs, not a second mechanism."""
+    await run_schedule.async_turn_off()
+
+    mock_device.build_stop_mowing_obj.assert_called_once_with()
+
+
+def test_run_schedule_ignores_a_pause_that_has_run_out(
+    run_schedule: GardenaRunScheduleSwitch, values: dict[str, object]
+) -> None:
+    """A pause in the past is over, not a parked mower."""
+    values["lemonbeat/0/action_paused_until_1"] = (2020).to_bytes(2, "little") + bytes(
+        [6, 1, 12, 0]
+    )
+
+    assert run_schedule.is_on is True
+
+
+def test_run_schedule_is_unknown_for_a_frame_it_cannot_read(
+    run_schedule: GardenaRunScheduleSwitch, values: dict[str, object]
+) -> None:
+    """A value of the wrong shape is not guessed at."""
+    values["lemonbeat/0/action_paused_until_1"] = b"\x00\x00"
+
+    assert run_schedule.is_on is None

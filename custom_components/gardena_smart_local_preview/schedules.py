@@ -13,6 +13,7 @@ and minutes as a plain number.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from gardena_smart_local_api.utils.schedules import (
@@ -35,6 +36,30 @@ WEEKDAYS: dict[str, Gen1Weekday] = {
 
 # "up to 14 schedules, 7 bytes each", per the model definitions
 MAX_SCHEDULES = 14
+
+# What a mower reports in "paused until" when nothing is paused: the device's
+# own idle value, seen on a mower that had never been parked. Parking writes
+# a date far in the future instead, so this is the way back.
+NOT_PAUSED = (1970).to_bytes(2, "little") + bytes([1, 1, 0, 0])
+
+
+def is_paused(raw: bytes | None) -> bool | None:
+    """Return whether the mower is currently paused.
+
+    The resource holds the local wall-clock time a pause runs until, as a
+    year and then month, day, hour and minute. Docking writes a date far in
+    the future and an idle mower reports one in 1970, but there is no need to
+    recognise either: a pause that has not run out yet is a pause.
+    """
+    if not isinstance(raw, bytes) or len(raw) != 6:
+        return None
+    year = int.from_bytes(raw[0:2], "little")
+    month, day, hour, minute = raw[2:6]
+    try:
+        until = datetime(year, month, day, hour, minute)
+    except ValueError:
+        return None
+    return until > datetime.now()
 
 
 def describe_schedule(raw: bytes) -> list[dict[str, Any]]:
