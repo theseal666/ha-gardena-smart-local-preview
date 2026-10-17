@@ -85,3 +85,46 @@ def test_refuses_more_schedules_than_a_device_holds() -> None:
 
     with pytest.raises(ValueError):
         build_schedule([entry] * 15)
+
+
+# Read off the same mower later the same day, after its schedule had been
+# changed from the official app: five weekdays, 10:30, three hours — and a
+# different first byte.
+CHANGED_SCHEDULE = bytes.fromhex("80760a1eb40000")
+
+
+def test_round_trips_a_schedule_whose_first_byte_is_set() -> None:
+    """The byte the device keeps per entry is written back, not guessed."""
+    described = describe_schedule(CHANGED_SCHEDULE)
+
+    assert described == [
+        {
+            "days": ["monday", "tuesday", "thursday", "friday", "saturday"],
+            "start": "10:30",
+            "duration_minutes": 180,
+        }
+    ]
+    assert build_schedule(described, template=CHANGED_SCHEDULE) == CHANGED_SCHEDULE
+
+
+def test_a_new_entry_inherits_the_devices_own_byte() -> None:
+    """An added slot copies what the device uses rather than inventing one."""
+    config = build_schedule(
+        [
+            {"days": ["monday"], "start": "10:30", "duration_minutes": 180},
+            {"days": ["sunday"], "start": "12:00", "duration_minutes": 60},
+        ],
+        template=CHANGED_SCHEDULE,
+    )
+
+    assert config[0] == 0x80
+    assert config[7] == 0x80
+
+
+def test_without_a_template_the_byte_is_zero() -> None:
+    """A device with no schedule yet gets the value the other mower showed."""
+    config = build_schedule(
+        [{"days": ["monday"], "start": "09:30", "duration_minutes": 340}]
+    )
+
+    assert config == REAL_SCHEDULE

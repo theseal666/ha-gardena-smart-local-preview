@@ -53,14 +53,28 @@ def describe_schedule(raw: bytes) -> list[dict[str, Any]]:
     return described
 
 
-def build_schedule(entries: list[dict[str, Any]]) -> bytes:
+def build_schedule(
+    entries: list[dict[str, Any]], template: bytes | None = None
+) -> bytes:
     """Build a schedule blob from entries given as days, start and duration.
+
+    The first byte of an entry is carried over from `template`, the schedule
+    the device currently holds. The dependency calls it a schedule id, but a
+    mower was observed holding 0x80 in it for its only entry and 0x00 for an
+    earlier one, so it behaves more like a flag whose meaning is not
+    documented anywhere available. Writing a guess there could change
+    something invisible, so what the device chose is written back: by slot,
+    falling back to the first slot's value, and to zero for a device whose
+    schedule was empty.
 
     Raises ValueError on anything the device would not accept, so a bad
     schedule is refused here rather than written to a mower.
     """
     if len(entries) > MAX_SCHEDULES:
         raise ValueError(f"A device holds at most {MAX_SCHEDULES} schedules")
+
+    held = parse_gen1_schedule_config(template) if template else []
+    fallback_id = held[0].schedule_id if held else 0
 
     built: list[Gen1ScheduleEntry] = []
     for index, entry in enumerate(entries):
@@ -87,13 +101,15 @@ def build_schedule(entries: list[dict[str, Any]]) -> bytes:
 
         built.append(
             Gen1ScheduleEntry(
-                schedule_id=index,
+                schedule_id=held[index].schedule_id
+                if index < len(held)
+                else fallback_id,
                 weekdays=weekdays,
                 start_hour=start_hour,
                 start_minute=start_minute,
                 duration_minutes=duration,
-                # The mowers seen so far carry 0 here; the resource is a
-                # single schedule list, so there is no second action to pick.
+                # Every entry seen so far carries 0 here, on two mowers and
+                # across a schedule change made from the official app.
                 action=0,
             )
         )

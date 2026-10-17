@@ -24,7 +24,7 @@ from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import GardenaSmartLocalCoordinator
-from .device_data import has_resource
+from .device_data import has_resource, read_value
 from .entity import (
     EntityFactories,
     GardenaEntity,
@@ -178,6 +178,9 @@ class GardenaMower(GardenaEntity, LawnMowerEntity):
                 f"Device {self._device.id} does not hold a schedule this "
                 f"integration can write"
             )
+        # Written back per slot, so the byte the device keeps in each entry
+        # survives a schedule this integration did not write
+        held = read_value(self._device, "lemonbeat", "schedule_config")
         try:
             config = build_schedule(
                 [
@@ -187,7 +190,8 @@ class GardenaMower(GardenaEntity, LawnMowerEntity):
                         "duration_minutes": entry["duration_minutes"],
                     }
                     for entry in schedules
-                ]
+                ],
+                template=held if isinstance(held, bytes) else None,
             )
         except ValueError as err:
             raise HomeAssistantError(f"Invalid schedule: {err}") from err

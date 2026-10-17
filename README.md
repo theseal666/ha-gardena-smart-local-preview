@@ -257,6 +257,13 @@ data:
 ```
 
 > [!NOTE]
+> The first byte of each entry is written back exactly as the device holds
+> it. The dependency calls it a schedule id, but one mower was seen holding
+> `0x80` in it for its only entry and `0x00` for an earlier one, so it
+> behaves more like a flag than an index and nothing available documents it.
+> Writing a guess there could change something invisible.
+
+> [!NOTE]
 > Docking a mower parks it until further notice — the integration writes a
 > date far in the future to the device's "paused until" resource. **Resume
 > schedule** writes back the idle value a mower that has never been parked
