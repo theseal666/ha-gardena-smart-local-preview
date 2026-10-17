@@ -22,6 +22,11 @@
         "name": "Clear schedules"
       }
     },
+    "device_tracker": {
+      "position": {
+        "name": "Position"
+      }
+    },
     "number": {
       "button_watering_duration": {
         "name": "Button watering duration"
@@ -31,6 +36,9 @@
       },
       "turn_on_pressure": {
         "name": "Turn-on pressure"
+      },
+      "position_update_interval": {
+        "name": "Position update interval"
       }
     },
     "select": {
@@ -117,6 +125,11 @@
       },
       "status_message_code": {
         "name": "Status message code"
+      }
+    },
+    "switch": {
+      "position_reporting": {
+        "name": "Position reporting"
       }
     },
     "valve": {
