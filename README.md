@@ -202,6 +202,27 @@ local API carries no table to resolve them to text.
   and payload bytes as attributes. Disabled by default: the stream is mostly
   informational.
 
+## Mower Position
+
+Mowers with LONA report where they are, which gives them a `device_tracker`
+entity to put on a map card.
+
+The mower only reports a position on request, and for at most an hour per
+request, so reporting is a switch rather than something that is always on:
+
+- **Position reporting** — turn on to start reporting. The request is renewed
+  while the switch stays on, so a mowing session longer than an hour keeps
+  being tracked. It turns itself off when the mower stops reporting.
+- **Position update interval** — how often a position is sent while reporting.
+- **Position** — the mower's position, from the LONA fix it navigates by, or
+  the raw GNSS fix for as long as LONA has no position yet. The heading, the
+  compass and the GNSS fix are kept as attributes.
+
+> [!NOTE]
+> This is the mower's position, not the map it has learnt of your garden. The
+> map itself stays in the mower; the local API can only wipe or deactivate it,
+> not read it.
+
 ## Removal
 
 1. Go to **Settings → Devices & Services**
@@ -228,8 +249,8 @@ If installed via HACS, you can also remove the integration files there: open HAC
 | GARDENA smart SILENO+                      | 19061-20, 19061-60, 19064-60, 19065-60     | Lawn mower, last error code / time                          |
 | GARDENA smart SILENO city                  | 19066-20, 19069-20                         | Lawn mower, last error code / time                          |
 | GARDENA smart SILENO life                  | 19113-20, 19114-20, 19115-20               | Lawn mower, last error code / time                          |
-| GARDENA smart SILENO city (with LONA)      | 19602-66, 19603-60, 19605-60               | Lawn mower, last error code / time                          |
-| GARDENA smart SILENO life (with LONA)      | 19701-60, 19702-60, 19703-66, 19704-60     | Lawn mower, last error code / time                          |
+| GARDENA smart SILENO city (with LONA)      | 19602-66, 19603-60, 19605-60               | Lawn mower, position, position reporting, position update interval, last error code / time |
+| GARDENA smart SILENO life (with LONA)      | 19701-60, 19702-60, 19703-66, 19704-60     | Lawn mower, position, position reporting, position update interval, last error code / time |
 | GARDENA smart SILENO pro                   | 19802-20, 19802-22                         | Lawn mower, mower error code                                |
 | GARDENA smart SILENO max                   | 19901-22                                   | Lawn mower, mower error code                                |
 | GARDENA smart SILENO free                  | 19921-22, 19922-22, 19923-22               | Lawn mower, mower error code                                |

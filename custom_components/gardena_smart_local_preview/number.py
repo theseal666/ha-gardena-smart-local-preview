@@ -16,6 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import GardenaSmartLocalCoordinator
+from .device_data import has_resource, read_int
 from .entity import (
     EntityFactories,
     GardenaEntity,
@@ -65,6 +66,10 @@ async def async_setup_entry(
         elif hasattr(device, "build_start_mowing_obj"):
             entities["mower_duration"] = partial(
                 GardenaMowerDuration, coordinator, entry, device
+            )
+        if has_resource(device, "lemonbeat", "position_update_interval"):
+            entities["position_update_interval"] = partial(
+                GardenaPositionUpdateInterval, coordinator, device
             )
         for valve_id in getattr(device, "valve_ids", []):
             entities[f"valve_duration_{valve_id}"] = partial(
@@ -346,4 +351,49 @@ class GardenaMowerDuration(GardenaEntity, NumberEntity):
             "Set mower duration for device %s to %s hours",
             self._device.id,
             hours,
+        )
+
+
+class GardenaPositionUpdateInterval(GardenaEntity, NumberEntity):
+    """How often a mower reports its position while reporting is on."""
+
+    _attr_native_min_value = 1
+    # The resource takes up to an hour, but an interval beyond a minute is of
+    # no use for following a mower around the garden.
+    _attr_native_max_value = 60
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = UnitOfTime.SECONDS
+    _attr_mode = NumberMode.BOX
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_translation_key = "position_update_interval"
+
+    def __init__(
+        self,
+        coordinator: GardenaSmartLocalCoordinator,
+        device: Device,
+    ) -> None:
+        super().__init__(coordinator, device)
+        self._attr_unique_id = f"{device.id}_position_update_interval"
+        self._attr_icon = "mdi:timer-outline"
+
+    @property
+    def native_value(self) -> float | None:
+        device = self.coordinator.data.get(self._device.id)
+        if not device:
+            return None
+        # The device keeps this one in milliseconds.
+        milliseconds = read_int(device, "lemonbeat", "position_update_interval")
+        return None if milliseconds is None else milliseconds / 1000
+
+    async def async_set_native_value(self, value: float) -> None:
+        milliseconds = int(value * 1000)
+        await self._send_confirmed_command(
+            self._device.build_set_resource_obj(
+                "lemonbeat", 0, "position_update_interval", milliseconds
+            )
+        )
+        _LOGGER.info(
+            "Set position update interval for device %s to %s ms",
+            self._device.id,
+            milliseconds,
         )
