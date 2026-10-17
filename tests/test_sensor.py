@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
+from gardena_smart_local_api.resources import ValueField
 from homeassistant.core import HomeAssistant
 
 from custom_components.gardena_smart_local_preview.sensor import (
@@ -28,15 +29,33 @@ def values(mock_device: MagicMock) -> dict[str, object]:
     return reported
 
 
+@pytest.fixture
+def report_times(mock_device: MagicMock) -> dict[str, int]:
+    """Let the device mock carry the gateway timestamp of a reported value."""
+    timestamps: dict[str, int] = {}
+    mock_device.get_field.side_effect = lambda path: (
+        ValueField(ts=timestamps[str(path)]) if str(path) in timestamps else None
+    )
+    return timestamps
+
+
 def test_error_code_reports_the_first_active_code(
-    coordinator: MagicMock, mock_device: MagicMock, values: dict[str, object]
+    coordinator: MagicMock,
+    mock_device: MagicMock,
+    values: dict[str, object],
+    report_times: dict[str, int],
 ) -> None:
     """The state is the active code, with every reported code as an attribute."""
     values["device/0/error_code"] = [0, 13]
+    report_times["device/0/error_code"] = 1791990715
     sensor = GardenaErrorCodeSensor(coordinator, mock_device)
 
     assert sensor.native_value == 13
-    assert sensor.extra_state_attributes == {"error_codes": [0, 13]}
+    assert sensor.extra_state_attributes == {
+        "error_codes": [0, 13],
+        # The gateway's own timestamp, which tells a current fault from an old one
+        "reported_at": datetime(2026, 10, 14, 15, 11, 55, tzinfo=UTC),
+    }
 
 
 def test_error_code_is_zero_without_an_error(
@@ -85,13 +104,17 @@ async def test_last_error_time_is_reported_as_utc(
 
 
 def test_status_message_resolves_the_level(
-    coordinator: MagicMock, mock_device: MagicMock, values: dict[str, object]
+    coordinator: MagicMock,
+    mock_device: MagicMock,
+    values: dict[str, object],
+    report_times: dict[str, int],
 ) -> None:
     """The message's numeric level is named, the rest is passed through."""
     values["lemonbeat_status_message/0/code"] = 10
     values["lemonbeat_status_message/0/level"] = 2
     values["lemonbeat_status_message/0/type"] = 200
     values["lemonbeat_status_message/0/data"] = "000025"
+    report_times["lemonbeat_status_message/0/code"] = 1791990715
     sensor = GardenaStatusMessageCodeSensor(coordinator, mock_device)
 
     assert sensor.native_value == 10
@@ -99,4 +122,18 @@ def test_status_message_resolves_the_level(
         "level": "error",
         "message_type": 200,
         "data": "000025",
+        "reported_at": datetime(2026, 10, 14, 15, 11, 55, tzinfo=UTC),
     }
+
+
+def test_reported_at_is_unknown_without_a_timestamp(
+    coordinator: MagicMock,
+    mock_device: MagicMock,
+    values: dict[str, object],
+    report_times: dict[str, int],
+) -> None:
+    """A value the gateway reported without a timestamp is not dated."""
+    values["device/0/error_code"] = [0]
+    sensor = GardenaErrorCodeSensor(coordinator, mock_device)
+
+    assert sensor.extra_state_attributes == {"error_codes": [0], "reported_at": None}
