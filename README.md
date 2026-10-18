@@ -197,7 +197,7 @@ it saw, so `reported_at` is what separates a current fault from one that
 cleared days ago.
 
 - **Last error** (Gen1 mowers) — the last error by name, for example
-  `No loop signal`. The local API carries no table to resolve a code to text,
+  `No loop signal` or `Temporary battery problem`. The local API carries no table to resolve a code to text,
   so the names in `error_codes.py` are added one at a time and only once the
   meaning has been observed on a device: the number this integration reports,
   and the text the device gives the same event — the mower's display, or the
@@ -254,9 +254,13 @@ shows which of the two you are looking at.
 
 > [!NOTE]
 > Duration is in whole minutes, because that is what the device stores. The
-> last day of a schedule cannot be switched off: a schedule with no days is
-> not something the device can express, so removing the schedule is the way
-> to stop it.
+> last day of a schedule cannot be switched off, and neither can the last
+> schedule be removed: a mower does not hold an empty schedule. Measured
+> twice, an empty one was written and acknowledged, and three seconds later
+> the mower reported a schedule of its own — every day, from 00:00, for 1440
+> minutes. Emptying the schedule means "mow at any hour", which is also what
+> the **Clear schedules** button leaves behind. To stop the mower, turn
+> **Run schedule** off.
 - **Run schedule** — a switch over the pause the device holds. Off parks the
   mower until further notice, the same park docking performs; on hands the
   schedule back. It reads the device, so parking from the mower or the app

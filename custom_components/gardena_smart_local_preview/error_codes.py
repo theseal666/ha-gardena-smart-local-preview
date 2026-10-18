@@ -28,6 +28,11 @@ from __future__ import annotations
 GEN1_MOWER_ERRORS: dict[int, str] = {
     0: "none",
     2: "no_loop_signal",
+    # Reported at 02:40 on a night the air was at 0.6 °C, by a mower that had
+    # just driven out; the GARDENA app called it "temporary battery problem"
+    # nine minutes later, and no other error was reported in between. Weaker
+    # evidence than code 2 above, which matched four events to the minute.
+    62: "temporary_battery_problem",
 }
 
 # Reported for a code that has no confirmed name yet. The raw number stays in

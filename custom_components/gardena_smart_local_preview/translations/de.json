@@ -161,7 +161,8 @@
         "state": {
           "none": "Kein Fehler",
           "no_loop_signal": "Kein Schleifensignal",
-          "unknown": "Unbekannter Fehler"
+          "unknown": "Unbekannter Fehler",
+          "temporary_battery_problem": "Vorübergehendes Batterieproblem"
         }
       },
       "cutting_time": {

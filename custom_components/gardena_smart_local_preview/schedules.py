@@ -166,14 +166,27 @@ def add_entry(raw: bytes | None, entry: dict[str, Any]) -> bytes:
 
 
 def remove_entry(raw: bytes, index: int) -> bytes:
-    """Return the schedule without the entry in the given slot."""
+    """Return the schedule without the entry in the given slot.
+
+    Refuses to remove the last one. A mower does not hold an empty schedule:
+    measured twice on a Gen1 mower, an empty one was written, acknowledged,
+    and three seconds later the mower reported a schedule of its own —
+    every day, from 00:00, for 1440 minutes. Emptying the schedule therefore
+    means "mow at any hour", which is the opposite of what removing the last
+    entry looks like it does, and it is how that mower came to set off at
+    02:40 in the morning.
+    """
     entries = describe_schedule(raw)
     if not 0 <= index < len(entries):
         raise ValueError(f"No schedule in slot {index}")
+    if len(entries) == 1:
+        raise ValueError(
+            "A device replaces an empty schedule with one of its own, every "
+            "day around the clock. Turn the schedule off with the run "
+            "schedule switch instead of removing the last entry"
+        )
     remaining = [e for position, e in enumerate(entries) if position != index]
-    # An empty schedule is an empty blob, which is how a device with no
-    # schedule reports itself
-    return build_schedule(remaining, template=raw) if remaining else b""
+    return build_schedule(remaining, template=raw)
 
 
 def set_day(raw: bytes, index: int, day: str, enabled: bool) -> bytes:

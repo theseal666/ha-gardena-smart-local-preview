@@ -161,7 +161,8 @@
         "state": {
           "none": "Aucune erreur",
           "no_loop_signal": "Pas de signal du câble périphérique",
-          "unknown": "Erreur inconnue"
+          "unknown": "Erreur inconnue",
+          "temporary_battery_problem": "Problème de batterie temporaire"
         }
       },
       "cutting_time": {

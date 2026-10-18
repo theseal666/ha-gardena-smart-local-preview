@@ -161,7 +161,8 @@
         "state": {
           "none": "No error",
           "no_loop_signal": "No loop signal",
-          "unknown": "Unknown error"
+          "unknown": "Unknown error",
+          "temporary_battery_problem": "Temporary battery problem"
         }
       },
       "cutting_time": {

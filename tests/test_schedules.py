@@ -192,11 +192,6 @@ def test_removes_one_entry() -> None:
     ]
 
 
-def test_removing_the_last_entry_empties_the_schedule() -> None:
-    """An empty schedule is an empty blob, as a device with none reports."""
-    assert remove_entry(CHANGED_SCHEDULE, 0) == b""
-
-
 @pytest.mark.parametrize("index", [-1, 1, 99])
 def test_editing_a_slot_that_does_not_exist_is_refused(index: int) -> None:
     """A slot number from a stale dashboard does not rewrite slot zero."""
@@ -246,3 +241,13 @@ def test_refuses_to_turn_off_the_last_day() -> None:
 
     with pytest.raises(ValueError):
         set_day(one_day, 0, "monday", False)
+
+
+def test_the_last_entry_cannot_be_removed() -> None:
+    """A device replaces an empty schedule with one that mows around the clock.
+
+    Measured twice: an empty schedule was written and acknowledged, and three
+    seconds later the mower reported every day, 00:00, 1440 minutes.
+    """
+    with pytest.raises(ValueError, match="run schedule switch"):
+        remove_entry(CHANGED_SCHEDULE, 0)
